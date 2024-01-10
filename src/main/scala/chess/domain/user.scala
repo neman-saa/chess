@@ -1,0 +1,26 @@
+package chess.domain
+
+import doobie.Meta
+import tsec.authorization.{AuthGroup, SimpleAuthEnum}
+
+import java.util.UUID
+
+
+object user {
+
+  case class User(id: UUID, elo: Int, wins: Int, loses: Int, allGames: Int, nickname: String, mbEmail: Option[String], role: Role)
+
+  enum Role {
+    case ADMIN, PLAYER
+  }
+
+  object Role {
+    given metaRole: Meta[Role] = Meta[String].timap[Role](Role.valueOf)(_.toString)
+  }
+
+  given roleAuthEnum: SimpleAuthEnum[Role, String] with {
+    override val values: AuthGroup[Role] = AuthGroup(Role.ADMIN, Role.PLAYER)
+
+    override def getRepr(role: Role): String = role.toString
+  }
+}
