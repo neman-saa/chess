@@ -25,25 +25,21 @@ type GameStatus = String
 
 trait Games[F[_]] {
 
-  def allGames: F[List[Game]]
+  def allGames: F[List[UUID]]
   def persistGameAndDeleteFromList(id: UUID, winner: Option[String]): F[Unit]
   def cancelGame(id: UUID): F[Unit]
-  def moveFor(id: UUID, fromTo: (Coordinate, Coordinate)): F[Boolean]
+  def moveFor(id: UUID, fromTo: (Coordinate, Coordinate)): F[GameStatus]
   def startGame(players: (UUID, UUID)): F[UUID]
   def getGameById(id: UUID): F[Option[GameForPersistence]]
 }
 
-class LiveGames[F[_]: Concurrent: Logger](xa: Transactor[F])(workers: Ref[F, List[GameWorker[F]]]) extends Games[F] {
+class LiveGames[F[_]: Concurrent: Logger](xa: Transactor[F])(games: Ref[F, Map[UUID, ((UUID, UUID), GameWorker[F])]]) extends Games[F] {
 
-  def allGames: F[List[Game]] = for {
-    workers <- workers.get
-    games <- workers.traverse(_.getGame)
-  } yield games
+  def allGames: F[List[UUID]] = games.get.map(map => map.keys.toList)
 
   def persistGameAndDeleteFromList(id: UUID, winner: Option[String]): F[Unit] = for {
-    workerss <- workers.get
-    worker <- workerss.filter(_.id == id).head.pure[F]
-    game <- worker.getGame.map(_.toPersist(winner))
+    workers <- games.get
+    worker <- workers(id).pure[F]
     _ <-
       sql"""
         INSERT INTO games (
@@ -52,35 +48,34 @@ class LiveGames[F[_]: Concurrent: Logger](xa: Transactor[F])(workers: Ref[F, Lis
         player1,
         player2
         ) VALUES (
-        ${game.id},
-        ${game.winner},
-        ${game.player1},
-        ${game.player2}
+        $id,
+        $winner,
+        ${worker._1._1},
+        ${worker._1._2}
         )
         """.update.run.transact(xa)
-    _ <- workers.set(workerss.filter(_.id != id))
+    _ <- games.update(map => map.removed(id))
   } yield ()
 
 
-  def cancelGame(id: UUID): F[Unit] = workers.update(_.filter(_.id != id))
+  def cancelGame(id: UUID): F[Unit] = games.update(map => map.removed(id))
 
-  def moveFor(id: UUID, fromTo: (Coordinate, Coordinate)): F[Boolean] = for {
-    workerss <- workers.get
-    status <- workerss.filter(_.id == id).head.makeMove(fromTo).map(_._2)
+  def moveFor(id: UUID, fromTo: (Coordinate, Coordinate)): F[GameStatus] = for {
+    workers <- games.get
+    worker <- workers(id)._2.pure[F]
+    status <- worker.makeMove(fromTo)
     isEnded <- status match {
-      case "draw" => persistGameAndDeleteFromList(id, None).map(_ => true)
-      case "winBlack" => persistGameAndDeleteFromList(id, Some("black")).map(_ => true)
-      case "winWhite" => persistGameAndDeleteFromList(id, Some("white")).map(_ => true)
       case "gameContinue" => false.pure[F]
+      case status => persistGameAndDeleteFromList(id, Some(status)).map(_ => true)
     }
-  } yield isEnded
+  } yield status
 
   def startGame(players: (UUID, UUID)): F[UUID] = {
     val id = UUID.randomUUID()
 
     for {
       worker <- GameWorker(players, id)
-      _ <- workers.update(worker :: _)
+      _ <- games.update(map => map + (id -> (players, worker)))
     } yield id
   }
 
@@ -100,7 +95,7 @@ object LiveGames {
   }
 
   def apply[F[_]: Concurrent: Logger](xa: Transactor[F]): F[LiveGames[F]] = for {
-    workers <- Ref.of[F, List[GameWorker[F]]](Nil)
+    workers <- Ref.of[F, Map[UUID, ((UUID, UUID), GameWorker[F])]](Map())
   } yield new LiveGames[F](xa)(workers)
 }
 
