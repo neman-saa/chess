@@ -24,6 +24,7 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
       val board = gameInfo.board
       val current = from
       val turn = gameInfo.turn
+      val previousMove = gameInfo.previousMove
 
       def allMovesByCoordinatesWeak(x: Int, y: Int, board: Board, localCurrent: Coordinate, color: String, moves: List[Coordinate] = Nil): List[Coordinate] = {
         if (localCurrent._1 + x > 8 || localCurrent._1 + x < 1 || localCurrent._2 + y > 8 || localCurrent._2 + y < 1) localCurrent :: moves
@@ -77,22 +78,58 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
           isAvailable((current._1 - 1, current._2 + 2), turn)
       }
 
-      def weakPawnMoves: List[Coordinate] = ???
+      def weakPawnMoves: List[Coordinate] = turn match {
+        case "white" =>
+          def enPassant: List[Coordinate] = previousMove match {
+            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 + 1 && y1 == 7) && (y2 == 5) => isAvailable((current._1 + 1, 6), turn)
+            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 - 1 && y1 == 7) && (y2 == 5) => isAvailable((current._1 - 1, 6), turn)
+            case _ => Nil
+          }
 
-      board.board(current._1 - 1)(current._2 - 1).figure.get.color match {
-        case c if c == turn =>
-          board.board(current._1 - 1)(current._2 - 1).figure.get.figure match {
-          case Figure.ROOK1 => weakRookMoves
-          case Figure.ROOK2 => weakRookMoves
-          case Figure.KNIGHT => weakKnightMoves
-          case Figure.BISHOP => weakBishopMoves
-          case Figure.QUEEN => weakQueenMoves
-          case Figure.KING => weakKingMoves
-          case Figure.PAWN => weakPawnMoves
-        }
-        case _ => Nil
+          def simpleMove: List[Coordinate] = {
+            if (current._2 == 2) {
+              if (board.board(current._1 - 1)(current._2).figure.isEmpty)
+                List((current._1, current._2 + 1))
+              else Nil
+            }
+              ::: {
+              if (board.board(current._1 - 1)(current._2).figure.isEmpty && board.board(current._1 + 1)(current._2).figure.isEmpty)
+                List((current._1, current._2 + 1))
+              else Nil
+            }
+            else if (board.board(current._1 - 1)(current._2).figure.isEmpty) List((current._1, current._2 + 1))
+            else Nil
+          }
+            enPassant ::: simpleMove
+        case "black" =>
+          def enPassant: List[Coordinate] = previousMove match {
+            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 + 1 && y1 == 2) && (y2 == 4) => isAvailable((current._1 + 1, 3), turn)
+            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 - 1 && y1 == 2) && (y2 == 4) => isAvailable((current._1 - 1, 3), turn)
+            case _ => Nil
+          }
+
+          def simpleMove: List[Coordinate] = {
+            if (current._2 == 7) (if (board.board(current._1 - 1)(current._2 - 2).figure.isEmpty) List((current._1, current._2 - 1)) else Nil) ::: (if (board.board(current._1 - 1)(current._2 - 2).figure.isEmpty && board.board(current._1 - 1)(current._2 - 3).figure.isEmpty) List((current._1, current._2 - 2)) else Nil)
+            else if (board.board(current._1 - 1)(current._2 - 2).figure.isEmpty) List((current._1, current._2 - 1))
+            else Nil
+          }
+          enPassant ::: simpleMove
+      }
+
+      //board.board(current._1 - 1)(current._2 - 1).figure.get.color match {
+      //case c if c == turn =>
+      board.board(current._1 - 1)(current._2 - 1).figure.get.figure match {
+        case Figure.ROOK1 => weakRookMoves
+        case Figure.ROOK2 => weakRookMoves
+        case Figure.KNIGHT => weakKnightMoves
+        case Figure.BISHOP => weakBishopMoves
+        case Figure.QUEEN => weakQueenMoves
+        case Figure.KING => weakKingMoves
+        case Figure.PAWN => weakPawnMoves
       }
     }
+       // case _ => Nil
+      //}
 
     def isPositionLegal(gameInfo: GameInfo): Boolean = gameInfo.turn match {
       case "white" => !gameInfo.fieldsWithFigures._1.flatMap(a => availableMovesFromWeak(gameInfo, a)).contains(gameInfo.kingCoordinates._2)
