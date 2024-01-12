@@ -100,7 +100,22 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
             else if (board.board(current._1 - 1)(current._2).figure.isEmpty) List((current._1, current._2 + 1))
             else Nil
           }
-            enPassant ::: simpleMove
+
+          def take: List[Coordinate] = {
+            {
+            if (board.board(current._1)(current._2).figure.isEmpty) Nil
+            else if (board.board(current._1)(current._2).figure.get.color == turn) Nil
+            else List((current._1 + 1, current._2 + 1))
+            } :::
+            {
+              if (board.board(current._1 - 2)(current._2).figure.isEmpty) Nil
+              else if (board.board(current._1 - 2)(current._2).figure.get.color == turn) Nil
+              else List((current._1 -1, current._2 + 1))
+            }
+          }
+
+          enPassant ::: simpleMove
+
         case "black" =>
           def enPassant: List[Coordinate] = previousMove match {
             case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 + 1 && y1 == 2) && (y2 == 4) => isAvailable((current._1 + 1, 3), turn)
