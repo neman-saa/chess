@@ -14,11 +14,12 @@ import java.util.UUID
 class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
   type Coordinate = (Int, Int)
   type GameStatus = String
-
   def getGameId: F[UUID] = id.pure[F]
 
 
   def availableMovesFrom(gameInfo: GameInfo, from: Coordinate): F[List[Coordinate]] = {
+
+    val isCastleAvailable = gameInfo.isCastleAvailable
 
     def availableMovesFromWeak(gameInfo: GameInfo, from: Coordinate): List[Coordinate] = {
       val board = gameInfo.board
@@ -34,19 +35,19 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
       }
 
       def weakBishopMoves: List[Coordinate] =
-        allMovesByCoordinatesWeak(1, 1, board, current, turn) :::
-          allMovesByCoordinatesWeak(-1, -1, board, current, turn) :::
-          allMovesByCoordinatesWeak(1, -1, board, current, turn) :::
+        allMovesByCoordinatesWeak(1, 1, board, current, turn) |+|
+          allMovesByCoordinatesWeak(-1, -1, board, current, turn) |+|
+          allMovesByCoordinatesWeak(1, -1, board, current, turn) |+|
           allMovesByCoordinatesWeak(-1, 1, board, current, turn)
 
       def weakRookMoves: List[Coordinate] =
-        allMovesByCoordinatesWeak(0, 1, board, current, turn) :::
-          allMovesByCoordinatesWeak(0, -1, board, current, turn) :::
-          allMovesByCoordinatesWeak(1, 0, board, current, turn) :::
+        allMovesByCoordinatesWeak(0, 1, board, current, turn) |+|
+          allMovesByCoordinatesWeak(0, -1, board, current, turn) |+|
+          allMovesByCoordinatesWeak(1, 0, board, current, turn) |+|
           allMovesByCoordinatesWeak(-1, 0, board, current, turn)
 
       def weakQueenMoves: List[Coordinate] =
-        weakRookMoves :::
+        weakRookMoves |+|
           weakBishopMoves
 
       def isAvailable(coordinate: Coordinate, color: String): List[Coordinate] = {
@@ -57,24 +58,24 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
       }
 
       def weakKingMoves: List[Coordinate] = {
-        isAvailable((current._1 + 1, current._2 + 1), turn) :::
-          isAvailable((current._1 + 1, current._2), turn) :::
-          isAvailable((current._1 + 1, current._2 - 1), turn) :::
-          isAvailable((current._1, current._2 - 1), turn) :::
-          isAvailable((current._1 - 1, current._2 - 1), turn) :::
-          isAvailable((current._1 - 1, current._2), turn) :::
-          isAvailable((current._1 - 1, current._2 + 1), turn) :::
+        isAvailable((current._1 + 1, current._2 + 1), turn) |+|
+          isAvailable((current._1 + 1, current._2), turn) |+|
+          isAvailable((current._1 + 1, current._2 - 1), turn) |+|
+          isAvailable((current._1, current._2 - 1), turn) |+|
+          isAvailable((current._1 - 1, current._2 - 1), turn) |+|
+          isAvailable((current._1 - 1, current._2), turn) |+|
+          isAvailable((current._1 - 1, current._2 + 1), turn) |+|
           isAvailable((current._1, current._2 + 1), turn)
       }
 
       def weakKnightMoves: List[Coordinate] = {
-        isAvailable((current._1 + 1, current._2 + 2), turn) :::
-          isAvailable((current._1 + 2, current._2 + 1), turn) :::
-          isAvailable((current._1 + 1, current._2 - 2), turn) :::
-          isAvailable((current._1 - 2, current._2 + 1), turn) :::
-          isAvailable((current._1 - 1, current._2 - 2), turn) :::
-          isAvailable((current._1 - 2, current._2 - 1), turn) :::
-          isAvailable((current._1 + 2, current._2 - 1), turn) :::
+        isAvailable((current._1 + 1, current._2 + 2), turn) |+|
+          isAvailable((current._1 + 2, current._2 + 1), turn) |+|
+          isAvailable((current._1 + 1, current._2 - 2), turn) |+|
+          isAvailable((current._1 - 2, current._2 + 1), turn) |+|
+          isAvailable((current._1 - 1, current._2 - 2), turn) |+|
+          isAvailable((current._1 - 2, current._2 - 1), turn) |+|
+          isAvailable((current._1 + 2, current._2 - 1), turn) |+|
           isAvailable((current._1 - 1, current._2 + 2), turn)
       }
 
@@ -92,7 +93,7 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
                 List((current._1, current._2 + 1))
               else Nil
             }
-              ::: {
+              |+| {
               if (board.board(current._1 - 1)(current._2).figure.isEmpty && board.board(current._1 - 1)(current._2 + 1).figure.isEmpty)
                 List((current._1, current._2 + 2))
               else Nil
@@ -106,14 +107,14 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
               if (board.board(current._1)(current._2).figure.isEmpty) Nil
               else if (board.board(current._1)(current._2).figure.get.color == turn) Nil
               else List((current._1 + 1, current._2 + 1))
-            } ::: {
+            } |+| {
               if (board.board(current._1 - 2)(current._2).figure.isEmpty) Nil
               else if (board.board(current._1 - 2)(current._2).figure.get.color == turn) Nil
               else List((current._1 - 1, current._2 + 1))
             }
           }
 
-          enPassant ::: simpleMove ::: take
+          enPassant |+| simpleMove |+| take
 
         case "black" =>
           def enPassant: List[Coordinate] = previousMove match {
@@ -126,7 +127,7 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
             if (current._2 == 7) {
               if (board.board(current._1 - 1)(current._2 - 2).figure.isEmpty) List((current._1, current._2 - 1))
               else Nil
-            } ::: {
+            } |+| {
               if (board.board(current._1 - 1)(current._2 - 2).figure.isEmpty && board.board(current._1 - 1)(current._2 - 3).figure.isEmpty) List((current._1, current._2 - 2))
               else Nil
             }
@@ -139,14 +140,14 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
               if (board.board(current._1)(current._2 - 2).figure.isEmpty) Nil
               else if (board.board(current._1)(current._2 - 2).figure.get.color == turn) Nil
               else List((current._1 + 1, current._2 - 1))
-            } ::: {
+            } |+| {
               if (board.board(current._1 - 2)(current._2 - 2).figure.isEmpty) Nil
               else if (board.board(current._1 - 2)(current._2 - 2).figure.get.color == turn) Nil
               else List((current._1 - 1, current._2 - 1))
             }
           }
 
-          enPassant ::: simpleMove ::: take
+          enPassant |+| simpleMove |+| take
       }
 
       //board.board(current._1 - 1)(current._2 - 1).figure.get.color match {
@@ -169,18 +170,51 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
       case "black" => !gameInfo.fieldsWithFigures._2.flatMap(a => availableMovesFromWeak(gameInfo, a)).contains(gameInfo.kingCoordinates._1)
     }
 
-    def makeMovePrediction(gameInfo: GameInfo, fromTo: (Coordinate, Coordinate)): Board = {
-      val board = gameInfo.board.board
-      val columnToUpdate1 = board(fromTo._1._1 - 1)
-      val updated1 = columnToUpdate1.updated(fromTo._1._2 - 1, Field(fromTo._1, None))
-      val columnToUpdate2 = board(fromTo._2._1 - 1)
-      val updated2 = columnToUpdate2.updated(fromTo._2._2 - 1, Field(fromTo._2, board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure))
-      Board(board.updated(fromTo._1._1 - 1, updated1).updated(fromTo._2._1 - 1, updated2))
+
+
+    def castle(turn: String) = {
+
+      def castleRight: List[Coordinate] = turn match {
+        case "white" if isCastleAvailable._2 && => List((from._1 + 2, from._2))
+        case _ => Nil
+        }
+      def castleLeft: List[Coordinate] = ???
+
+      castleLeft |+| castleRight
     }
 
     ???
   }
 
+  def makeMovePrediction(gameInfo: GameInfo, fromTo: (Coordinate, Coordinate)): GameInfo = {
+    val board = gameInfo.board.board
+    val updatedBoard =
+      if (fromTo._1._1 == fromTo._2._1) {
+        val columnToUpdate = board(fromTo._1._1 - 1)
+        val updatedColumn = columnToUpdate.updated(fromTo._1._2 - 1, Field(fromTo._1, None)).updated(fromTo._2._2 - 1, Field(fromTo._2, board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure))
+        Board(board.updated(fromTo._1._1 - 1, updatedColumn))
+      }
+      else {
+        val columnToUpdate1 = board(fromTo._1._1 - 1)
+        val columnToUpdate2 = board(fromTo._2._1 - 1)
+        val updated1 = columnToUpdate1.updated(fromTo._1._2 - 1, Field(fromTo._1, None))
+        val updated2 = columnToUpdate2.updated(fromTo._2._2 - 1, Field(fromTo._2, board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure))
+        Board(board.updated(fromTo._1._1 - 1, updated1).updated(fromTo._2._1 - 1, updated2))
+      }
+    val fieldsWithFigures = gameInfo.fieldsWithFigures
+    val updatedFieldsWithFigures = gameInfo.turn match {
+      case "white" => (fromTo._2 :: fieldsWithFigures._1.filter(_ != fromTo._1), fieldsWithFigures._2.filter(_ != fromTo._2))
+      case "black" => ( fieldsWithFigures._1.filter(_ != fromTo._2), fromTo._2 :: fieldsWithFigures._2.filter(_ != fromTo._1))
+    }
+    val updatedTurn =  if (gameInfo.turn == "white") "black" else "white"
+    val kingCoordinates = gameInfo.kingCoordinates
+    val updatedKingCoordinates = gameInfo.turn match {
+      case "white" => if(board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure.get.figure == Figure.KING) (fromTo._2, kingCoordinates._2) else kingCoordinates
+      case "black" => if(board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure.get.figure == Figure.KING) (kingCoordinates._1, fromTo._2) else kingCoordinates
+    }
+
+    val
+  }
   def getGame: F[GameInfo] = game.get
 
   def isEnded(gameInfo: GameInfo): F[Boolean] = gameInfo.turn.match {
