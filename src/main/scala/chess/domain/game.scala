@@ -9,11 +9,20 @@ object game {
 
   type Coordinate = (Int, Int)
 
+  trait Move(val figure: Figure, val fromTo: (Coordinate, Coordinate))
+
+  case class SimpleMove(figure: Figure, fromTo: (Coordinate, Coordinate)) extends Move(figure, fromTo)
+
+  case class EnPassant(figure: Figure, fromTo: (Coordinate, Coordinate)) extends Move(Figure.PAWN, fromTo)
+
+  case class Castle(right: Boolean, fromTo: (Coordinate, Coordinate)) extends Move(Figure.KING, fromTo)
+
+  case class Promotion(fromTo: (Coordinate, Coordinate), promotesTo: Figure) extends Move(Figure.PAWN, fromTo)
   case class GameInfo(
                    board: Board,
                    moves: Int = 0,
                    previousMove: Option[(Figure, (Coordinate, Coordinate))] = None,
-                   isCastleAvailable: (Boolean, Boolean, Boolean, Boolean) = (true, true, true, true),
+                   isCastleAvailable: List[Boolean] = List(true, true, true, true),
                    kingCoordinates: (Coordinate, Coordinate) = ((5,1), (5,8)),
                    fieldsWithFigures: (List[Coordinate], List[Coordinate]) = (
                      List((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2), (4, 1), (4, 2), (5, 1), (5, 2), (6, 1), (6, 2), (7, 1), (7, 2), (8, 1), (8, 2)),

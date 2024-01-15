@@ -7,15 +7,16 @@ import cats.instances.list.*
 import cats.kernel.Previous
 import cats.syntax.all.*
 import chess.domain.chessboard.{Board, Field, Figure, defaultBoard}
-import chess.domain.game.{Game, GameInfo}
+import chess.domain.game.*
 
 import java.util.UUID
 
 class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
   type Coordinate = (Int, Int)
   type GameStatus = String
-  def getGameId: F[UUID] = id.pure[F]
 
+
+  def getGameId: F[UUID] = id.pure[F]
 
   def availableMovesFrom(gameInfo: GameInfo, from: Coordinate): F[List[Coordinate]] = {
 
@@ -118,8 +119,8 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
 
         case "black" =>
           def enPassant: List[Coordinate] = previousMove match {
-            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 + 1 && y1 == current._2 -2) && (y2 == current._2) => List((current._1 + 1, 3))
-            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 - 1 && y1 == current._2 -2) && (y2 == current._2 ) => List((current._1 - 1, 3))
+            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 + 1 && y1 == current._2 - 2) && (y2 == current._2) => List((current._1 + 1, 3))
+            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 - 1 && y1 == current._2 - 2) && (y2 == current._2) => List((current._1 - 1, 3))
             case _ => Nil
           }
 
@@ -171,25 +172,27 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
     }
 
 
-
-    def castle(turn: String) = {
+    /*def castle(turn: String) = {
 
       def castleRight: List[Coordinate] = turn match {
         case "white" if isCastleAvailable._2 && => List((from._1 + 2, from._2))
         case _ => Nil
-        }
+      }
+
       def castleLeft: List[Coordinate] = ???
 
       castleLeft |+| castleRight
     }
 
+     */
+
     ???
   }
 
-  def makeMovePrediction(gameInfo: GameInfo, fromTo: (Coordinate, Coordinate)): GameInfo = {
+  def makeMovePrediction(gameInfo: GameInfo, move: Move): GameInfo = {
     val board = gameInfo.board.board
-    val updatedBoard =
-      if (fromTo._1._1 == fromTo._2._1) {
+    val updatedBoard = move match {
+      case SimpleMove(figure, fromTo) => if (fromTo._1._1 == fromTo._2._1) {
         val columnToUpdate = board(fromTo._1._1 - 1)
         val updatedColumn = columnToUpdate.updated(fromTo._1._2 - 1, Field(fromTo._1, None)).updated(fromTo._2._2 - 1, Field(fromTo._2, board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure))
         Board(board.updated(fromTo._1._1 - 1, updatedColumn))
@@ -201,20 +204,100 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
         val updated2 = columnToUpdate2.updated(fromTo._2._2 - 1, Field(fromTo._2, board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure))
         Board(board.updated(fromTo._1._1 - 1, updated1).updated(fromTo._2._1 - 1, updated2))
       }
-    val fieldsWithFigures = gameInfo.fieldsWithFigures
-    val updatedFieldsWithFigures = gameInfo.turn match {
-      case "white" => (fromTo._2 :: fieldsWithFigures._1.filter(_ != fromTo._1), fieldsWithFigures._2.filter(_ != fromTo._2))
-      case "black" => ( fieldsWithFigures._1.filter(_ != fromTo._2), fromTo._2 :: fieldsWithFigures._2.filter(_ != fromTo._1))
+      case EnPassant(figure, fromTo) => gameInfo.turn match {
+        case "white" =>
+          val columnToUpdate1 = board(fromTo._1._1 - 1)
+          val columnToUpdate2 = board(fromTo._2._1 - 1)
+          val updated1 = columnToUpdate1.updated(fromTo._1._2 - 1, Field(fromTo._1, None))
+          val updated2 = columnToUpdate2.updated(fromTo._2._2 - 2, Field(fromTo._1, None)).updated(fromTo._2._2 - 1, Field(fromTo._2, move.figure))
+          Board(board.updated(fromTo._1._1 - 1, updated1).updated(fromTo._2._1 - 1, updated2))
+
+        case "black" =>
+          val columnToUpdate1 = board(fromTo._1._1 - 1)
+          val columnToUpdate2 = board(fromTo._2._1 - 1)
+          val updated1 = columnToUpdate1.updated(fromTo._1._2 - 1, Field(fromTo._1, None))
+          val updated2 = columnToUpdate2.updated(fromTo._2._2, Field(fromTo._1, None)).updated(fromTo._2._2 - 1, Field(fromTo._2, move.figure))
+          Board(board.updated(fromTo._1._1 - 1, updated1).updated(fromTo._2._1 - 1, updated2))
+      }
+      case Castle(right, fromTo) => gameInfo.turn match {
+        case "white" => if (right)
+          val updated1 = board(4).updated(0, Field((5, 1), None))
+          val updated2 = board(5).updated(0, Field((6, 1), Figure.ROOK2))
+          val updated3 = board(6).updated(0, Field((7, 1), Figure.KING))
+          val updated4 = board(7).updated(0, Field((8, 1), None))
+          Board(board.updated(4, updated1).updated(5, updated2).updated(6, updated3).updated(7, updated4))
+        else
+          val updated1 = board(0).updated(0, Field((1, 1), None))
+          val updated2 = board(2).updated(0, Field((3, 1), Figure.KING))
+          val updated3 = board(3).updated(0, Field((4, 1), Figure.ROOK1))
+          val updated4 = board(4).updated(0, Field((5, 1), None))
+          Board(board.updated(0, updated1).updated(2, updated2).updated(3, updated3).updated(4, updated4))
+        case "black" => if (right)
+          val updated1 = board(4).updated(7, Field((5, 8), None))
+          val updated2 = board(5).updated(7, Field((6, 8), Figure.ROOK2))
+          val updated3 = board(6).updated(7, Field((7, 8), Figure.KING))
+          val updated4 = board(7).updated(7, Field((8, 8), None))
+          Board(board.updated(4, updated1).updated(5, updated2).updated(6, updated3).updated(7, updated4))
+        else
+          val updated1 = board(0).updated(7, Field((1, 8), None))
+          val updated2 = board(2).updated(7, Field((3, 8), Figure.KING))
+          val updated3 = board(3).updated(7, Field((4, 8), Figure.ROOK1))
+          val updated4 = board(4).updated(7, Field((5, 8), None))
+          Board(board.updated(0, updated1).updated(2, updated2).updated(3, updated3).updated(4, updated4))
+      }
+
     }
-    val updatedTurn =  if (gameInfo.turn == "white") "black" else "white"
+    val fieldsWithFigures = gameInfo.fieldsWithFigures
+    val updatedFieldsWithFigures = move match {
+      case EnPassant(figure, fromTo) => gameInfo.turn match {
+        case "white" => (fromTo._2 :: fieldsWithFigures._1.filter(_ != fromTo._1), fieldsWithFigures._2.filter(_ != (fromTo._2._1, fromTo._2._2 - 1)))
+        case "black" => (fieldsWithFigures._1.filter(_ != (fromTo._2._1, fromTo._2._2 + 1)), fromTo._2 :: fieldsWithFigures._2.filter(_ != fromTo._1))
+      }
+      case Castle(right, fromTo) => gameInfo.turn match {
+        case "white" => if (right) (6, 1) :: (7, 1) :: fieldsWithFigures._1.filter(_ != (5, 1)).filter(_ != (8, 1))
+        else (3, 1) :: (4, 1) :: fieldsWithFigures._1.filter(_ != (1, 1)).filter(_ != (5, 1))
+        case "black" => if (right) (6, 8) :: (7, 8) :: fieldsWithFigures._1.filter(_ != (5, 8)).filter(_ != (8, 8))
+        else (3, 8) :: (4, 8) :: fieldsWithFigures._1.filter(_ != (1, 8)).filter(_ != (5, 8))
+      }
+      case SimpleMove(figure, fromTo) => gameInfo.turn match {
+        case "white" => (fromTo._2 :: fieldsWithFigures._1.filter(_ != fromTo._1), fieldsWithFigures._2.filter(_ != fromTo._2))
+        case "black" => (fieldsWithFigures._1.filter(_ != fromTo._2), fromTo._2 :: fieldsWithFigures._2.filter(_ != fromTo._1))
+      }
+      case Promotion(figure, fromTo) => gameInfo.turn match {
+        case "white" => (fromTo._2 :: fieldsWithFigures._1.filter(_ != fromTo._1), fieldsWithFigures._2.filter(_ != fromTo._2))
+        case "black" => (fieldsWithFigures._1.filter(_ != fromTo._2), fromTo._2 :: fieldsWithFigures._2.filter(_ != fromTo._1))
+      }
+    }
+    val updatedTurn = if (gameInfo.turn == "white") "black" else "white"
     val kingCoordinates = gameInfo.kingCoordinates
     val updatedKingCoordinates = gameInfo.turn match {
-      case "white" => if(board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure.get.figure == Figure.KING) (fromTo._2, kingCoordinates._2) else kingCoordinates
-      case "black" => if(board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure.get.figure == Figure.KING) (kingCoordinates._1, fromTo._2) else kingCoordinates
+      case "white" => if (move.figure == Figure.KING) (move.fromTo, kingCoordinates._2) else kingCoordinates
+      case "black" => if (move.figure == Figure.KING) (kingCoordinates._1, move.fromTo) else kingCoordinates
     }
 
-    val
+    val isCastleAvailable = gameInfo.isCastleAvailable
+    val updatedCastle = gameInfo.turn match {
+      case "white" =>
+        if (move.figure == Figure.KING)
+          isCastleAvailable.updated(0, false).updated(1, false)
+        else if (move.figure == Figure.ROOK1)
+          isCastleAvailable.updated(0, false)
+        else if (move.figure == Figure.ROOK2)
+          isCastleAvailable.updated(1, false)
+        else isCastleAvailable
+      case "black" =>
+        if (move.figure == Figure.KING)
+          isCastleAvailable.updated(2, false).updated(3, false)
+        else if (move.figure == Figure.ROOK1)
+          isCastleAvailable.updated(2, false)
+        else if (move.figure == Figure.ROOK2)
+          isCastleAvailable.updated(3, false)
+        else isCastleAvailable
+    }
+    val updatedPreviousMove = move
+    GameInfo(updatedBoard, gameInfo.moves + 1, updatedPreviousMove, updatedCastle, updatedKingCoordinates, updatedFieldsWithFigures, updatedTurn)
   }
+
   def getGame: F[GameInfo] = game.get
 
   def isEnded(gameInfo: GameInfo): F[Boolean] = gameInfo.turn.match {
@@ -224,26 +307,8 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
 
 
   def makeMove(fromTo: (Coordinate, Coordinate)): F[GameStatus] = for {
-    tr <- game.updateAndGet(g => g.copy(
-      moves = g.moves + 1,
-      previousMove = Some(g.board.board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure.get.figure, fromTo),
-      kingCoordinates = {
-        val figure = g.board.board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure
-        if (figure.get.figure == Figure.KING && figure.get.color == "white") (fromTo._2, g.kingCoordinates._2)
-        else if (figure.get.figure == Figure.KING && figure.get.color == "black") (g.kingCoordinates._1, fromTo._2)
-        else g.kingCoordinates
-      },
-      isCastleAvailable = g.isCastleAvailable, //!!!!!!!!! TODO
-      fieldsWithFigures = {
-        val color = g.board.board(fromTo._1._1)(fromTo._1._2).figure.get.color
-
-        color match {
-          case "white" => (g.fieldsWithFigures._1.filter(_ != fromTo._1), g.fieldsWithFigures._2.filter(_ != fromTo._2))
-          case "black" => (g.fieldsWithFigures._1.filter(_ != fromTo._2), g.fieldsWithFigures._2.filter(_ != fromTo._1))
-        }
-      }
-    ))
-
+    tr <- game.updateAndGet(makeMovePrediction(_, fromTo))
+    isEnded <- isEnded(tr)
   } yield "TODO"
 }
 
