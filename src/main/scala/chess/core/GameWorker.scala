@@ -2,11 +2,11 @@ package chess.core
 
 import cats.effect.Ref
 import cats.effect.kernel.Concurrent
-import cats.kernel.Previous
-import cats.syntax.all.*
 import cats.effect.syntax.*
 import cats.instances.list.*
-import chess.domain.chessboard.{Board, Figure, defaultBoard, Field}
+import cats.kernel.Previous
+import cats.syntax.all.*
+import chess.domain.chessboard.{Board, Field, Figure, defaultBoard}
 import chess.domain.game.{Game, GameInfo}
 
 import java.util.UUID
@@ -81,8 +81,8 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
       def weakPawnMoves: List[Coordinate] = turn match {
         case "white" =>
           def enPassant: List[Coordinate] = previousMove match {
-            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 + 1 && y1 == 7) && (y2 == 5) => isAvailable((current._1 + 1, 6), turn)
-            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 - 1 && y1 == 7) && (y2 == 5) => isAvailable((current._1 - 1, 6), turn)
+            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 + 1 && y1 == current._2 + 2) && (y2 == current._2) => List((current._1 + 1, 6))
+            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 - 1 && y1 == current._2 + 2) && (y2 == current._2) => List((current._1 - 1, 6))
             case _ => Nil
           }
 
@@ -93,8 +93,8 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
               else Nil
             }
               ::: {
-              if (board.board(current._1 - 1)(current._2).figure.isEmpty && board.board(current._1 + 1)(current._2).figure.isEmpty)
-                List((current._1, current._2 + 1))
+              if (board.board(current._1 - 1)(current._2).figure.isEmpty && board.board(current._1 - 1)(current._2 + 1).figure.isEmpty)
+                List((current._1, current._2 + 2))
               else Nil
             }
             else if (board.board(current._1 - 1)(current._2).figure.isEmpty) List((current._1, current._2 + 1))
@@ -103,32 +103,50 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
 
           def take: List[Coordinate] = {
             {
-            if (board.board(current._1)(current._2).figure.isEmpty) Nil
-            else if (board.board(current._1)(current._2).figure.get.color == turn) Nil
-            else List((current._1 + 1, current._2 + 1))
-            } :::
-            {
+              if (board.board(current._1)(current._2).figure.isEmpty) Nil
+              else if (board.board(current._1)(current._2).figure.get.color == turn) Nil
+              else List((current._1 + 1, current._2 + 1))
+            } ::: {
               if (board.board(current._1 - 2)(current._2).figure.isEmpty) Nil
               else if (board.board(current._1 - 2)(current._2).figure.get.color == turn) Nil
-              else List((current._1 -1, current._2 + 1))
+              else List((current._1 - 1, current._2 + 1))
             }
           }
 
-          enPassant ::: simpleMove
+          enPassant ::: simpleMove ::: take
 
         case "black" =>
           def enPassant: List[Coordinate] = previousMove match {
-            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 + 1 && y1 == 2) && (y2 == 4) => isAvailable((current._1 + 1, 3), turn)
-            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 - 1 && y1 == 2) && (y2 == 4) => isAvailable((current._1 - 1, 3), turn)
+            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 + 1 && y1 == current._2 -2) && (y2 == current._2) => List((current._1 + 1, 3))
+            case Some(figure, ((x1, y1), (x2, y2))) if figure == Figure.PAWN && (x1 == current._1 - 1 && y1 == current._2 -2) && (y2 == current._2 ) => List((current._1 - 1, 3))
             case _ => Nil
           }
 
           def simpleMove: List[Coordinate] = {
-            if (current._2 == 7) (if (board.board(current._1 - 1)(current._2 - 2).figure.isEmpty) List((current._1, current._2 - 1)) else Nil) ::: (if (board.board(current._1 - 1)(current._2 - 2).figure.isEmpty && board.board(current._1 - 1)(current._2 - 3).figure.isEmpty) List((current._1, current._2 - 2)) else Nil)
+            if (current._2 == 7) {
+              if (board.board(current._1 - 1)(current._2 - 2).figure.isEmpty) List((current._1, current._2 - 1))
+              else Nil
+            } ::: {
+              if (board.board(current._1 - 1)(current._2 - 2).figure.isEmpty && board.board(current._1 - 1)(current._2 - 3).figure.isEmpty) List((current._1, current._2 - 2))
+              else Nil
+            }
             else if (board.board(current._1 - 1)(current._2 - 2).figure.isEmpty) List((current._1, current._2 - 1))
             else Nil
           }
-          enPassant ::: simpleMove
+
+          def take: List[Coordinate] = {
+            {
+              if (board.board(current._1)(current._2 - 2).figure.isEmpty) Nil
+              else if (board.board(current._1)(current._2 - 2).figure.get.color == turn) Nil
+              else List((current._1 + 1, current._2 - 1))
+            } ::: {
+              if (board.board(current._1 - 2)(current._2 - 2).figure.isEmpty) Nil
+              else if (board.board(current._1 - 2)(current._2 - 2).figure.get.color == turn) Nil
+              else List((current._1 - 1, current._2 - 1))
+            }
+          }
+
+          enPassant ::: simpleMove ::: take
       }
 
       //board.board(current._1 - 1)(current._2 - 1).figure.get.color match {
@@ -143,8 +161,8 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
         case Figure.PAWN => weakPawnMoves
       }
     }
-       // case _ => Nil
-      //}
+    // case _ => Nil
+    //}
 
     def isPositionLegal(gameInfo: GameInfo): Boolean = gameInfo.turn match {
       case "white" => !gameInfo.fieldsWithFigures._1.flatMap(a => availableMovesFromWeak(gameInfo, a)).contains(gameInfo.kingCoordinates._2)
@@ -152,13 +170,13 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
     }
 
     def makeMovePrediction(gameInfo: GameInfo, fromTo: (Coordinate, Coordinate)): Board = {
-          val board = gameInfo.board.board
-          val columnToUpdate1 = board(fromTo._1._1 - 1)
-          val updated1 = columnToUpdate1.updated(fromTo._1._2 - 1, Field(fromTo._1, None))
-          val columnToUpdate2 = board(fromTo._2._1 - 1)
-          val updated2 = columnToUpdate2.updated(fromTo._2._2 - 1, Field(fromTo._2, board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure))
-          Board(board.updated(fromTo._1._1 - 1, updated1).updated(fromTo._2._1 - 1, updated2))
-      }
+      val board = gameInfo.board.board
+      val columnToUpdate1 = board(fromTo._1._1 - 1)
+      val updated1 = columnToUpdate1.updated(fromTo._1._2 - 1, Field(fromTo._1, None))
+      val columnToUpdate2 = board(fromTo._2._1 - 1)
+      val updated2 = columnToUpdate2.updated(fromTo._2._2 - 1, Field(fromTo._2, board(fromTo._1._1 - 1)(fromTo._1._2 - 1).figure))
+      Board(board.updated(fromTo._1._1 - 1, updated1).updated(fromTo._2._1 - 1, updated2))
+    }
 
     ???
   }
@@ -193,7 +211,7 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
     ))
 
   } yield "TODO"
-  }
+}
 
 
 object GameWorker {
