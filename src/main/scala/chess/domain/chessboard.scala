@@ -5,7 +5,7 @@ import chessboard.Figure._
 object chessboard {
 
   enum Figure {
-    case PAWN, BISHOP, KNIGHT, ROOK1, ROOK2,  KING, QUEEN
+    case PAWN, BISHOP, KNIGHT, ROOK1, ROOK2,  KING, QUEEN, NoCastleROOK
   }
 
   case class FigureWithColor(figure: Figure, color: String)

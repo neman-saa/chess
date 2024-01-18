@@ -28,7 +28,7 @@ trait Games[F[_]] {
   def allGames: F[List[UUID]]
   def persistGameAndDeleteFromList(id: UUID, winner: Option[String]): F[Unit]
   def cancelGame(id: UUID): F[Unit]
-  def moveFor(id: UUID, fromTo: (Coordinate, Coordinate)): F[GameStatus]
+  def moveFor(id: UUID, move: Move): F[GameStatus]
   def startGame(players: (UUID, UUID)): F[UUID]
   def getGameById(id: UUID): F[Option[GameForPersistence]]
 }
@@ -60,10 +60,10 @@ class LiveGames[F[_]: Concurrent: Logger](xa: Transactor[F])(games: Ref[F, Map[U
 
   def cancelGame(id: UUID): F[Unit] = games.update(map => map.removed(id))
 
-  def moveFor(id: UUID, fromTo: (Coordinate, Coordinate)): F[GameStatus] = for {
+  def moveFor(id: UUID, move: Move): F[GameStatus] = for {
     workers <- games.get
     worker <- workers(id)._2.pure[F]
-    status <- worker.makeMove(fromTo)
+    status <- worker.makeMove(move)
     isEnded <- status match {
       case "gameContinue" => false.pure[F]
       case status => persistGameAndDeleteFromList(id, Some(status)).map(_ => true)

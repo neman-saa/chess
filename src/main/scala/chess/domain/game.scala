@@ -11,13 +11,13 @@ object game {
 
   trait Move(val figure: Figure, val fromTo: (Coordinate, Coordinate))
 
-  case class SimpleMove(figure: Figure, fromTo: (Coordinate, Coordinate)) extends Move(figure, fromTo)
+  case class SimpleMove(figuree: Figure, fromToo: (Coordinate, Coordinate)) extends Move(figuree, fromToo)
 
-  case class EnPassant(figure: Figure, fromTo: (Coordinate, Coordinate)) extends Move(Figure.PAWN, fromTo)
+  case class EnPassant(fromToo: (Coordinate, Coordinate)) extends Move(Figure.PAWN, fromToo)
 
-  case class Castle(right: Boolean, fromTo: (Coordinate, Coordinate)) extends Move(Figure.KING, fromTo)
+  case class Castle(right: Boolean, fromToo: (Coordinate, Coordinate)) extends Move(Figure.KING, fromToo)
 
-  case class Promotion(fromTo: (Coordinate, Coordinate), promotesTo: Figure) extends Move(Figure.PAWN, fromTo)
+  case class Promotion(fromToo: (Coordinate, Coordinate), promotesTo: Figure) extends Move(Figure.PAWN, fromToo)
   case class GameInfo(
                    board: Board,
                    moves: Int = 0,
