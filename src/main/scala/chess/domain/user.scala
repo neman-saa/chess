@@ -8,7 +8,16 @@ import java.util.UUID
 
 object user {
 
-  case class User(id: UUID, elo: Int, wins: Int, loses: Int, allGames: Int, nickname: String, mbEmail: Option[String], role: Role)
+  case class User(
+                   id: UUID,
+                   elo: Int, 
+                   wins: Int,
+                   loses: Int, 
+                   allGames: Int, 
+                   nickname: String, 
+                   role: Role, 
+                   email: String,
+                   hashedPassword: String)
 
   enum Role {
     case ADMIN, PLAYER
@@ -23,4 +32,6 @@ object user {
 
     override def getRepr(role: Role): String = role.toString
   }
+  
+  case class UserRegistration(pass: String, nickname: String, mbEmail: Option[String] = None)
 }

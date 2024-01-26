@@ -9,7 +9,7 @@ import cats.syntax.all.*
 import chess.domain.chessboard.Figure.ROOK1
 import chess.domain.chessboard.{Board, Figure, FigureWithColor, defaultBoard}
 import chess.domain.game.*
-
+import chess.domain.game.Move.*
 import java.util.UUID
 import scala.annotation.tailrec
 
@@ -20,7 +20,7 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
 
   def getGameId: F[UUID] = id.pure[F]
 
-  private def availableMovesFrom(gameInfo: GameInfo, from: Coordinate): F[List[Move]] = {
+  def availableMovesFromPrivate(gameInfo: GameInfo, from: Coordinate): F[List[Move]] = {
 
     val isCastleAvailable = gameInfo.isCastleAvailable
 
@@ -245,12 +245,12 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
   def getGame: F[GameInfo] = game.get
 
   def isEnded(gameInfo: GameInfo): F[GameStatus] = gameInfo.turn.match {
-    case "white" => gameInfo.board.board.filter(_.color == "white").flatTraverse(figure => availableMovesFrom(gameInfo, figure.coordinate)).map {
+    case "white" => gameInfo.board.board.filter(_.color == "white").flatTraverse(figure => availableMovesFromPrivate(gameInfo, figure.coordinate)).map {
       case Nil if !isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, (gameInfo.kingCoordinates._1, gameInfo.kingCoordinates._1)))) => "black win"
       case Nil => "draw"
       case _ => "game continuing"
     }
-    case "black" => gameInfo.board.board.filter(_.color == "black").flatTraverse(figure => availableMovesFrom(gameInfo, figure.coordinate)).map {
+    case "black" => gameInfo.board.board.filter(_.color == "black").flatTraverse(figure => availableMovesFromPrivate(gameInfo, figure.coordinate)).map {
       case Nil if !isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, (gameInfo.kingCoordinates._2, gameInfo.kingCoordinates._2)))) => "white win"
       case Nil => "draw"
       case _ => "game continuing"
@@ -263,10 +263,15 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
     isEnded <- isEnded(gameInfoNew)
     _ <- game.set(gameInfoNew)
   } yield isEnded
+  
+  def availableMovesFrom(coordinate: Coordinate): F[List[Move]] = for {
+    gameInfo <- game.get
+    moves <- availableMovesFromPrivate(gameInfo, coordinate)
+  } yield moves
 }
 
 object GameWorker {
-  def apply[F[_] : Concurrent](players: (UUID, UUID), id: UUID): F[GameWorker[F]] = for {
+  def apply[F[_] : Concurrent](id: UUID): F[GameWorker[F]] = for {
     game <- Ref.of[F, GameInfo](GameInfo(defaultBoard))
   } yield new GameWorker[F](game)(id)
 }

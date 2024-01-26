@@ -37,7 +37,6 @@ lazy val server = (project in file("."))
       "org.slf4j"                    % "slf4j-simple"        % slf4jVersion,
       "io.github.jmcardon"          %% "tsec-http4s"         % tsecVersion,
       "com.sun.mail"                 % "javax.mail"          % javaMailVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % "1.4.0",
       "org.typelevel"               %% "log4cats-noop"       % log4catsVersion  % Test,
       "org.scalatest"               %% "scalatest"           % scalaTestVersion % Test,
       "org.typelevel"     %% "cats-effect-testing-scalatest" % scalaTestCatsEffectVersion % Test,

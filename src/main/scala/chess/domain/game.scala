@@ -2,6 +2,7 @@ package chess.domain
 
 import chess.domain.chessboard.{Board, Figure, FigureWithColor}
 import chess.domain.user.User
+import chess.domain.game.Move.*
 
 import java.util.UUID
 
@@ -11,13 +12,15 @@ object game {
 
   trait Move(val figure: Figure, val fromTo: (Coordinate, Coordinate))
 
-  case class SimpleMove(figuree: Figure, fromToo: (Coordinate, Coordinate)) extends Move(figuree, fromToo)
+  object Move {
+    case class SimpleMove(figuree: Figure, fromToo: (Coordinate, Coordinate)) extends Move(figuree, fromToo)
 
-  case class EnPassant(fromToo: (Coordinate, Coordinate)) extends Move(Figure.PAWN, fromToo)
+    case class EnPassant(fromToo: (Coordinate, Coordinate)) extends Move(Figure.PAWN, fromToo)
 
-  case class Castle(right: Boolean, fromToo: (Coordinate, Coordinate)) extends Move(Figure.KING, fromToo)
+    case class Castle(right: Boolean, fromToo: (Coordinate, Coordinate)) extends Move(Figure.KING, fromToo)
 
-  case class Promotion(fromToo: (Coordinate, Coordinate), promotesTo: Figure) extends Move(Figure.PAWN, fromToo)
+    case class Promotion(fromToo: (Coordinate, Coordinate), promotesTo: Figure) extends Move(Figure.PAWN, fromToo)
+  }
   case class GameInfo(
                    board: Board,
                    moves: Int = 0,
