@@ -13,9 +13,10 @@ import java.util.UUID
 trait Users[F[_]] {
   def findByEmail(email: String): F[Option[User]]
   def findByNick(nickname: String): F[Option[User]]
+  def findById(id: UUID): F[Option[User]]
   def create(user: User): F[Either[String, UUID]]
 
-  def update(email: String, id: UUID, hashedPassword: String, nickname: String): F[Option[User]]
+  def update(email: Option[String], id: UUID, hashedPassword: String, nickname: String): F[Option[User]]
   def delete(email: String): F[Boolean]
 
 }
@@ -33,8 +34,15 @@ class UsersLive[F[_]: Concurrent](xa: Transactor[F]) extends Users[F] {
       .option
       .transact(xa)
 
+  override def findById(id: UUID): F[Option[User]] =
+    sql"SELECT * FROM users WHERE id=$id"
+      .query[User]
+      .option
+      .transact(xa)
+
+
   override def create(user: User): F[Either[String, UUID]] =
-    findByEmail(user.email).flatMap {
+    findByNick(user.nickname).flatMap {
       case Some(_) => Left("User with this email already exists").pure[F]
       case None => findByNick(user.nickname).flatMap {
         case None =>
@@ -63,7 +71,7 @@ class UsersLive[F[_]: Concurrent](xa: Transactor[F]) extends Users[F] {
       }
     }
 
-  override def update(email: String, id: UUID, hashedPassword: String, nickname: String): F[Option[User]] = for {
+  override def update(email: Option[String], id: UUID, hashedPassword: String, nickname: String): F[Option[User]] = for {
     _ <-
       sql"""
            UPDATE users SET
@@ -74,11 +82,11 @@ class UsersLive[F[_]: Concurrent](xa: Transactor[F]) extends Users[F] {
            .update
            .run
            .transact(xa)
-    mbUser <- findByEmail(email)
+    mbUser <- findByNick(nickname)
   } yield mbUser
 
-  override def delete(email: String): F[Boolean] =
-    sql"DELETE FROM users WHERE email=$email".update.run.transact(xa).map(_ == 1)
+  override def delete(nickname: String): F[Boolean] =
+    sql"DELETE FROM users WHERE nickname=$nickname".update.run.transact(xa).map(_ == 1)
 }
 
 object UsersLive {

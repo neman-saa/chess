@@ -32,7 +32,6 @@ trait Games[F[_]] {
 
   def endGame(loser: UUID, id: RoomId): F[Unit]
   def moveFor(id: RoomId, move: Move, player: UUID): F[Unit]
-
   def availableMovesFrom(player: UUID, roomId: RoomId, coordinate: Coordinate): F[Unit]
   def startGame(roomId: RoomId, players: (Player1, Player2)): F[RoomId]
   def getGameById(id: RoomId): F[Option[GameForPersistence]]

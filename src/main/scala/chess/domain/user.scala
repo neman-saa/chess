@@ -16,7 +16,7 @@ object user {
                    allGames: Int, 
                    nickname: String, 
                    role: Role, 
-                   email: String,
+                   email: Option[String],
                    hashedPassword: String)
 
   enum Role {

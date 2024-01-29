@@ -16,7 +16,6 @@ trait Lobby[F[_]]{
 class LobbyLive[F[_]: Concurrent](
   games: Games[F],
   lobbies: Ref[F, Map[UUID, UUID]],
-  link: String,
   sessions: Sessions[F]) extends Lobby[F] {
   def create(player1: UUID): F[Either[String, UUID]] = for {
     lobbiess <- lobbies.get
@@ -35,7 +34,7 @@ class LobbyLive[F[_]: Concurrent](
     result <- message match {
       case None => Left(ConnectionError("No such room or invalid UUID")).pure[F]
       case Some(player1) =>
-        sessions.offer(player1, s"go to $link/$roomId/$player1 to start game")
+        sessions.offer(player1, s"go to localhost:8080/chess/games/connectToGame/$roomId/$player1 to start game")
           .flatMap(_ => lobbies.update(lobbies => lobbies - roomId))
           .flatMap(_ => games.startConnectingGame(roomId, player1, player2))
           .map(_ => Right(player1))
@@ -45,6 +44,12 @@ class LobbyLive[F[_]: Concurrent](
   def exists(id: RoomId): F[Option[UUID]] = lobbies.get.map(map => Some(id).filter(map.contains))
 
   override def allLobbies: F[List[UUID]] = lobbies.get.map(_.keys.toList)
+}
+
+object LobbyLive {
+  def apply[F[_]: Concurrent](games: Games[F], sessions: Sessions[F]): F[LobbyLive[F]] = for {
+    ref <- Ref.of[F, Map[UUID, UUID]](Map.empty)
+  } yield new LobbyLive(games, ref, sessions)
 }
 
 case class ConnectionError(message: String)
