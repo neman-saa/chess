@@ -11,7 +11,7 @@ import cats.syntax.all.*
 private class HttpApi[F[_]: Concurrent: Logger](core: Core[F], webSocketBuilder: WebSocketBuilder2[F]) {
 
   private val gamesRoutes = GamesRoute[F](webSocketBuilder, core.games, core.lobbies, core.sessions, core.users, core.auth.authenticator).allRoutes
-  private val authRoutes = AuthRoutes[F](core.auth).allRoutes
+  private val authRoutes = AuthRoutes[F](core.auth, core.sessions).allRoutes
   
   val endpoints: HttpRoutes[F] = Router(
     "/chess" -> (gamesRoutes <+> authRoutes)

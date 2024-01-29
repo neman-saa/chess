@@ -12,7 +12,7 @@ ALTER TABLE games
 ADD CONSTRAINT pk_games PRIMARY KEY (id);
 
 CREATE TABLE users (
-    id uuid NOT NULL,
+    id uuid DEFAULT gen_random_uuid(),
     elo int NOT NULL,
     wins int NOT NULL,
     loses int NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE users (
     nickname text NOT NULL,
     role text NOT NULL,
     email text,
-    hashedPassword text NOT NULL,
+    hashedPassword text NOT NULL
 );
 
 ALTER TABLE users

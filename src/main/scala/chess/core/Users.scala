@@ -44,7 +44,7 @@ class UsersLive[F[_]: Concurrent](xa: Transactor[F]) extends Users[F] {
   override def create(user: User): F[Either[String, UUID]] =
     findByNick(user.nickname).flatMap {
       case Some(_) => Left("User with this email already exists").pure[F]
-      case None => findByNick(user.nickname).flatMap {
+      case None => user.email match {
         case None =>
           sql"""INSERT INTO users (
           |elo,
@@ -54,7 +54,7 @@ class UsersLive[F[_]: Concurrent](xa: Transactor[F]) extends Users[F] {
           |nickname,
           |role,
           |email,
-          |hashedPassword) VALUE (
+          |hashedPassword) VALUES (
           |${user.elo},
           |${user.wins},
           |${user.loses},
@@ -67,7 +67,31 @@ class UsersLive[F[_]: Concurrent](xa: Transactor[F]) extends Users[F] {
           .update
           .withUniqueGeneratedKeys[UUID]("id")
           .transact(xa).map(Right(_))
-        case Some(_) => Left("This nickname already exists").pure[F]
+        case Some(email) => findByEmail(email).flatMap {
+          case None =>
+            sql"""INSERT INTO users (
+                 |elo,
+                 |wins,
+                 |loses,
+                 |allGames,
+                 |nickname,
+                 |role,
+                 |email,
+                 |hashedPassword) VALUES (
+                 |${user.elo},
+                 |${user.wins},
+                 |${user.loses},
+                 |${user.allGames},
+                 |${user.nickname},
+                 |${user.role},
+                 |${user.email},
+                 |${user.hashedPassword});"""
+              .stripMargin
+              .update
+              .withUniqueGeneratedKeys[UUID]("id")
+              .transact(xa).map(Right(_))
+          case Some(_) => Left("This email already exists").pure[F]
+        }
       }
     }
 

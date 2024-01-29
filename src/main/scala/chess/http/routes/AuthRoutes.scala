@@ -2,7 +2,7 @@ package chess.http.routes
 
 import cats.effect.Concurrent
 import cats.syntax.all.*
-import chess.core.Auth
+import chess.core.{Auth, Sessions}
 import chess.domain.auth.LoginInfo
 import chess.domain.auth.NewPasswordInfo
 import chess.domain.security.*
@@ -23,7 +23,7 @@ import tsec.authentication.asAuthed
 import tsec.authentication.SecuredRequestHandler
 import tsec.authentication.TSecAuthService
 
-class AuthRoutess[F[_]: Concurrent: Logger](auth: Auth[F]) extends HttpValidationDsl[F] {
+class AuthRoutess[F[_]: Concurrent: Logger](auth: Auth[F], sessions: Sessions[F]) extends HttpValidationDsl[F] {
 
   val dsl: Http4sDsl[F] with RequestDslBinCompat = Http4sDsl[F]
   import dsl.*
@@ -44,7 +44,7 @@ class AuthRoutess[F[_]: Concurrent: Logger](auth: Auth[F]) extends HttpValidatio
   }
 
   private val signUp: HttpRoutes[F] = HttpRoutes.of[F] {
-    case req @ POST -> Root / "users" =>
+    case req @ POST -> Root / "users" / "signUp" =>
       req.validate[UserRegistration] { userRegistration =>
         for {
           mbNewUser <- auth.signUp(userRegistration)
@@ -80,6 +80,7 @@ class AuthRoutess[F[_]: Concurrent: Logger](auth: Auth[F]) extends HttpValidatio
       val token = req.authenticator
       for {
         _    <- authenticator.discard(token)
+        _    <- sessions.update(user.id, None)
         resp <- Ok()
       } yield resp
   }
@@ -97,5 +98,5 @@ class AuthRoutess[F[_]: Concurrent: Logger](auth: Auth[F]) extends HttpValidatio
 }
 
 object AuthRoutes {
-  def apply[F[_]: Concurrent: Logger](auth: Auth[F]): AuthRoutess[F] = new AuthRoutess[F](auth)
+  def apply[F[_]: Concurrent: Logger](auth: Auth[F], sessions: Sessions[F]): AuthRoutess[F] = new AuthRoutess[F](auth, sessions)
 }

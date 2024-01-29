@@ -57,7 +57,7 @@ class GamesRoute[F[_]: Concurrent](
         _         <- sessions.update(user.id, Some(queue))
         isCreated <- lobby.create(user.id)
         resp <- isCreated match {
-          case Left(_) => Forbidden()
+          case Left(e) => BadRequest(e)
           case Right(id) =>
             val fromClient: Pipe[F, WebSocketFrame, Unit] = _ => fs2.Stream.empty[F]
             val toClient =

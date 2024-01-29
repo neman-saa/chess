@@ -29,13 +29,13 @@ trait Auth[F[_]] {
 class LiveAuth[F[_]: Async : Logger](
     users: Users[F],
     authenticatorr: Authenticator[F],
-                                    )
+    sessions: Sessions[F])
   extends Auth[F] {
   override def login(nickname: String, password: String): F[Option[JwtToken]] = for {
     maybeUser <- users.findByNick(nickname)
     mbValidateUser <- maybeUser.filterA(user =>
       BCrypt.checkpwBool[F](password, PasswordHash[BCrypt](user.hashedPassword)))
-    mbJwtToken <- mbValidateUser.traverse(user => authenticatorr.create(user.nickname))
+    mbJwtToken <- mbValidateUser.traverse(user => sessions.add(user.id).flatMap(_ => authenticatorr.create(user.nickname)))
   } yield mbJwtToken
 
   override def signUp(userRegistration: UserRegistration): F[Option[User]] = {
@@ -88,7 +88,7 @@ class LiveAuth[F[_]: Async : Logger](
   }
 
 object LiveAuth {
-  def apply[F[_]: Async : Logger](users: Users[F], securityConfig: SecurityConfig): F[LiveAuth[F]] = {
+  def apply[F[_]: Async : Logger](users: Users[F], securityConfig: SecurityConfig, sessions: Sessions[F]): F[LiveAuth[F]] = {
     val keyF = HMACSHA256.buildKey[F](securityConfig.secret.getBytes("UTF-8"))
     val idStore: IdentityStore[F, String, User] = (nickname: String) => OptionT(users.findByNick(nickname))
     val tokenStoreF = Ref.of[F, Map[SecureRandomId, JwtToken]](Map.empty).map { ref =>
@@ -109,7 +109,7 @@ object LiveAuth {
       tokenStore = tokenStore,
       signingKey = key)
 
-    authenticatorF.map(authenticator => new LiveAuth[F](users, authenticator))
+    authenticatorF.map(authenticator => new LiveAuth[F](users, authenticator, sessions))
   }
 }
 
