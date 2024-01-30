@@ -2,9 +2,11 @@ package chess.core
 
 import cats.effect.{Concurrent, Ref}
 import chess.core.Games
+
 import java.util.UUID
 import cats.effect.std.Queue
 import cats.syntax.all.*
+import org.typelevel.log4cats.Logger
 trait Lobby[F[_]]{
   def create(player1: UUID): F[Either[String,UUID]]
   def connectTo(roomId: UUID, player2: UUID): F[Either[ConnectionError, UUID]]
@@ -13,7 +15,7 @@ trait Lobby[F[_]]{
   def allLobbies: F[List[UUID]]
 }
 
-class LobbyLive[F[_]: Concurrent](
+class LobbyLive[F[_]: Concurrent: Logger](
   games: Games[F],
   lobbies: Ref[F, Map[UUID, UUID]],
   sessions: Sessions[F]) extends Lobby[F] {
@@ -21,10 +23,11 @@ class LobbyLive[F[_]: Concurrent](
     lobbiess <- lobbies.get
     exists = lobbiess.values.exists(_ == player1)
     res <-
-      if(exists) Left("You have already created a lobby").pure[F]
+      if(exists) Logger[F].info("Creating existing lobby").map(_ => Left("You have already created a lobby"))
       else for {
         uuid <- UUID.randomUUID().pure[F]
-        _ <- lobbies.update(lobbies => lobbies + (uuid -> player1))
+        res <- lobbies.updateAndGet(lobbies => lobbies + (uuid -> player1))
+        _ <- Logger[F].info(s"created lobby $uuid, current lobbies are $res")
       } yield Right(uuid)
   } yield res
 
@@ -47,7 +50,7 @@ class LobbyLive[F[_]: Concurrent](
 }
 
 object LobbyLive {
-  def apply[F[_]: Concurrent](games: Games[F], sessions: Sessions[F]): F[LobbyLive[F]] = for {
+  def apply[F[_]: Concurrent: Logger](games: Games[F], sessions: Sessions[F]): F[LobbyLive[F]] = for {
     ref <- Ref.of[F, Map[UUID, UUID]](Map.empty)
   } yield new LobbyLive(games, ref, sessions)
 }

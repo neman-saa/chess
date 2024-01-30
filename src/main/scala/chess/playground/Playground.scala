@@ -20,7 +20,6 @@ import org.http4s.Status
 import org.http4s.ember.server.EmberServerBuilder
 import com.comcast.ip4s.Host
 import com.comcast.ip4s.Port
-
 import scala.concurrent.duration.*
 
 object Playground extends IOApp.Simple {
@@ -36,7 +35,7 @@ object Playground extends IOApp.Simple {
           val fromClient: Pipe[IO, WebSocketFrame, Unit] = (in: fs2.Stream[IO, WebSocketFrame]) =>
             in.collect {
               case WebSocketFrame.Text("ping", _) => {println("received"); "ping"}
-            }.map(queue.offer)
+            }.evalMap(queue.offer)
 
           val toClient: Stream[IO, WebSocketFrame] = (fs2.Stream.emit("Started") ++ fs2.Stream.fromQueueUnterminated(queue).map(_ => "pong")).map(WebSocketFrame.Text(_))
           webSocketBuilder.build(toClient, fromClient)
@@ -55,4 +54,5 @@ object Playground extends IOApp.Simple {
 
     serverResource.use(_ => IO.println("server started") *> IO.never)
   }
+
 }

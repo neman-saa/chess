@@ -3,6 +3,7 @@ package chess.core
 import cats.effect.kernel.{Concurrent, Ref}
 import cats.effect.std.Queue
 import cats.syntax.all.*
+import org.typelevel.log4cats.Logger
 
 import java.util.UUID
 
@@ -14,13 +15,22 @@ trait Sessions[F[_]]{
   def offer(id: UUID, message: String): F[Unit]
 }
 
-class SessionsLive[F[_]: Concurrent](sessions: Ref[F, Map[UUID, PlayerSession[F]]]) extends Sessions[F]{
+class SessionsLive[F[_]: Concurrent: Logger](sessions: Ref[F, Map[UUID, PlayerSession[F]]]) extends Sessions[F]{
 
-  def add(playerId: UUID): F[Unit] = sessions.update(_ + (playerId -> PlayerSession(playerId, None)))
+  def add(playerId: UUID): F[Unit] = for {
+    res <- sessions.updateAndGet(_ + (playerId -> PlayerSession(playerId, None)))
+    _ <- Logger[F].info(s"added $playerId session, current sessions are: $res")
+  } yield ()
 
-  def update(id: UUID, sock: Option[Queue[F, String]]): F[Unit] = sessions.update(_ + (id -> PlayerSession(id, sock)))
+  def update(id: UUID, sock: Option[Queue[F, String]]): F[Unit] = for {
+    res <- sessions.updateAndGet(_ + (id -> PlayerSession(id, sock)))
+    _ <- Logger[F].info(s"updated user $id session, current sessions are: $res")
+  } yield ()
 
-  def delete(id: UUID): F[Unit] = sessions.update(_ - id)
+  def delete(id: UUID): F[Unit] = for {
+    res <- sessions.updateAndGet(_ - id)
+    _ <- Logger[F].info(s"deleted user $id session, current sessions are: $res")
+  } yield ()
 
   def getSock(id: UUID): F[Option[PlayerSession[F]]] = sessions.get.map(_.get(id))
 
@@ -35,7 +45,7 @@ class SessionsLive[F[_]: Concurrent](sessions: Ref[F, Map[UUID, PlayerSession[F]
 }
 
 object SessionsLive {
-  def apply[F[_]: Concurrent]: F[SessionsLive[F]] = for {
+  def apply[F[_]: Concurrent: Logger]: F[SessionsLive[F]] = for {
     sessions <- Ref.of[F, Map[UUID, PlayerSession[F]]](Map.empty)
   } yield new SessionsLive(sessions)
 }

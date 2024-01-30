@@ -47,8 +47,6 @@ class GamesRoute[F[_]: Concurrent](
 ) extends Http4sDsl[F] {
 
   private val securedHandler: SecuredRequestHandler[F, String, User, JwtToken] = SecuredRequestHandler(authenticator)
-  private object UserName extends QueryParamDecoderMatcher[String]("username")
-  private object RoomId   extends QueryParamDecoderMatcher[String]("roomId")
 
   private val startLobby: AuthRoutes[F] = {
     case req @ GET -> Root / "startLobby" asAuthed user =>
@@ -59,7 +57,7 @@ class GamesRoute[F[_]: Concurrent](
         resp <- isCreated match {
           case Left(e) => BadRequest(e)
           case Right(id) =>
-            val fromClient: Pipe[F, WebSocketFrame, Unit] = _ => fs2.Stream.empty[F]
+            val fromClient: Pipe[F, WebSocketFrame, Unit] = (in: fs2.Stream[F, WebSocketFrame]) => in.drain
             val toClient =
               (fs2.Stream.emit(s"Lobby created, waiting opponent, id: $id") ++
                 fs2.Stream.fromQueueUnterminated(queue))
@@ -70,8 +68,8 @@ class GamesRoute[F[_]: Concurrent](
   }
 
   private val connectToLobby: AuthRoutes[F] = {
-    case req @ POST -> Root / "connectToLobby" :? RoomId(id) asAuthed user =>
-      lobby.connectTo(UUID.fromString(id), user.id).flatMap {
+    case req @ GET -> Root / "connectToLobby" / UUIDVar(id) asAuthed user =>
+      lobby.connectTo(id, user.id).flatMap {
         case Left(er) => BadRequest(er)
         case Right(player1) => Ok(s"Room created, connect to it, room id: $id")
       }
@@ -87,8 +85,8 @@ class GamesRoute[F[_]: Concurrent](
 
   private val connectToGame: AuthRoutes[F] = {
 
-    case req @ POST -> Root / "connectToGame" :? RoomId(id) asAuthed user =>
-      games.connect(UUID.fromString(id), user.id).flatMap {
+    case req @ GET -> Root / "connectToGame" / UUIDVar(id) asAuthed user =>
+      games.connect(id, user.id).flatMap {
         case Left(e) => BadRequest(e)
         case Right(_) =>
           for {
@@ -98,8 +96,8 @@ class GamesRoute[F[_]: Concurrent](
               val fromClient: Pipe[F, WebSocketFrame, Unit] =
                 (in: fs2.Stream[F, WebSocketFrame]) =>
                   in.collect {
-                    case _: WebSocketFrame.Close     => CancelGame(UUID.fromString(id))
-                    case WebSocketFrame.Text(str, _) => InputMessage.parse(user.id, str, UUID.fromString(id))
+                    case _: WebSocketFrame.Close     => CancelGame(id)
+                    case WebSocketFrame.Text(str, _) => InputMessage.parse(user.id, str, id)
                   }.evalMap(games.processMessage)
               val toClient =
                 Stream.emit("Connected to the game, waiting opponent.").map(WebSocketFrame.Text(_)) ++ fs2.Stream
