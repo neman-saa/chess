@@ -9,18 +9,19 @@ import cats.syntax.all.*
 import chess.domain.chessboard.Figure.ROOK1
 import chess.domain.chessboard.{Board, Figure, FigureWithColor, defaultBoard}
 import chess.domain.game.*
+import chess.domain.game.GameStatus.*
 import chess.domain.game.Move.*
+
 import java.util.UUID
 import scala.annotation.tailrec
 
-class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
+class GameWorker[F[_] : Concurrent](val game: Ref[F, GameInfo])(val id: UUID) {
   type Coordinate = (Int, Int)
-  type GameStatus = String
 
 
   def getGameId: F[UUID] = id.pure[F]
 
-  def availableMovesFromPrivate(gameInfo: GameInfo, from: Coordinate): F[List[Move]] = {
+  private def availableMovesFromPrivate(gameInfo: GameInfo, from: Coordinate): F[List[Move]] = {
 
     val isCastleAvailable = gameInfo.isCastleAvailable
 
@@ -30,22 +31,26 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
       case ("white", true) if gameInfo.isCastleAvailable(1) => if(
         isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 1), (7, 1))))) &&
           isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 1), (5, 1))))) &&
-          isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 1), (6, 1)))))
+          isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 1), (6, 1))))) &&
+          !board.exists(figure => figure.coordinate == (6, 1) || figure.coordinate == (7, 1))
       ) List(Castle(true, ((5, 1), (7, 1)))) else Nil
       case ("black", true) if gameInfo.isCastleAvailable(3) => if (
         isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 8), (7, 8))))) &&
           isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 8), (5, 8))))) &&
-          isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 8), (6, 8)))))
+          isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 8), (6, 8))))) &&
+          !board.exists(figure => figure.coordinate == (6, 8) || figure.coordinate == (7, 8))
       ) List(Castle(true, ((5, 8), (7, 8)))) else Nil
       case ("black", false) if gameInfo.isCastleAvailable(2) => if (
         isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 8), (5, 8))))) &&
-        isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 8), (4, 8))))) &&
-        isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 8), (3, 8)))))
+          isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 8), (4, 8))))) &&
+          isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 8), (3, 8))))) &&
+          !board.exists(figure => figure.coordinate == (2, 8) || figure.coordinate == (3, 8) || figure.coordinate == (4, 8))
       ) List(Castle(false, ((5, 8), (3, 8)))) else Nil
-      case ("white", false) if gameInfo.isCastleAvailable.head => if (
+      case ("white", false) if gameInfo.isCastleAvailable(0) => if (
         isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 1), (5, 1))))) &&
           isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 1), (4, 1))))) &&
-          isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 1), (3, 1)))))
+          isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, ((5, 1), (3, 1))))) &&
+          !board.exists(figure => figure.coordinate == (2, 1) || figure.coordinate == (3, 1) || figure.coordinate == (4, 1))
       ) List(Castle(false, ((5, 1), (3, 1)))) else Nil
       case _ => Nil
     }
@@ -63,9 +68,9 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
     def allMovesByCoordinatesWeak(x: Int, y: Int, board: Board, localCurrent: Coordinate, color: String, moves: List[Move] = Nil, figure: Figure): List[Move] =
       if (localCurrent._1 + x > 8 || localCurrent._1 + x < 1 || localCurrent._2 + y > 8 || localCurrent._2 + y < 1) moves
       else board.board.filter(_.coordinate == (localCurrent._1 + x, localCurrent._2 + y)) match {
-        case Nil => allMovesByCoordinatesWeak(x, y, board, (localCurrent._1 + x, localCurrent._2 + y), color, SimpleMove(figure, (localCurrent, (localCurrent._1 + x, localCurrent._2 + y))) :: moves, figure)
-        case List(FigureWithColor(_, color, _)) => moves
-        case _ => SimpleMove(figure, (localCurrent, (localCurrent._1 + x, localCurrent._2 + y))) :: moves
+        case Nil => allMovesByCoordinatesWeak(x, y, board, (localCurrent._1 + x, localCurrent._2 + y), color, SimpleMove(figure, (current, (localCurrent._1 + x, localCurrent._2 + y))) :: moves, figure)
+        case List(FigureWithColor(_, cvet, _)) if cvet == color => moves
+        case _ => SimpleMove(figure, (current, (localCurrent._1 + x, localCurrent._2 + y))) :: moves
       }
 
     def weakBishopMoves: List[Move] =
@@ -86,7 +91,7 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
     def isAvailable(coordinate: Coordinate, color: String): List[Coordinate] =
       if (coordinate._1 > 8 || coordinate._1 < 1 || coordinate._2 > 8 || coordinate._2 < 1) Nil
       else board.board.filter(_.coordinate == coordinate) match {
-        case List(FigureWithColor(_, color, _)) => Nil
+        case List(FigureWithColor(_, cvet, _)) if cvet == color => Nil
         case _ => List(coordinate)
       }
 
@@ -159,6 +164,7 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
             List(SimpleMove(Figure.PAWN, (current, (current._1 + 1, current._2 - 1))))
           case "black" if board.board.exists(figure => figure.coordinate == (current._1 - 1, current._2 - 1) && figure.color == "white") =>
             List(SimpleMove(Figure.PAWN, (current, (current._1 - 1, current._2 - 1))))
+          case _ => Nil
         }
 
         enPassant |+| simpleMove |+| take
@@ -231,38 +237,52 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
         isCastleAvailable.updated(2, false)
       case ("black", Figure.ROOK2) =>
         isCastleAvailable.updated(3, false)
-      case (_, _) => Nil
+      case (_, _) => isCastleAvailable
     }
     val updatedPreviousMove = Some(move)
 
     GameInfo(updatedBoard, gameInfo.moves + 1, updatedPreviousMove, updatedCastle, updatedKingCoordinates, updatedTurn)
     }
 
-  private def isPositionLegal(gameInfo: GameInfo): Boolean = gameInfo.turn match {
-    case "white" => !gameInfo.board.board.filter(_.color == "white").flatMap(figure => availableMovesFromWeak(gameInfo, figure.coordinate)).exists(move => move.fromTo._2 == gameInfo.kingCoordinates._2)
-    case "black" => !gameInfo.board.board.filter(_.color == "black").flatMap(figure => availableMovesFromWeak(gameInfo, figure.coordinate)).exists(move => move.fromTo._2 == gameInfo.kingCoordinates._1)
+   def isPositionLegal(gameInfo: GameInfo): Boolean = gameInfo.turn match {
+    case "white" =>
+      !gameInfo.board.board
+        .filter(_.color == "white")
+        .flatMap(figure => availableMovesFromWeak(gameInfo, figure.coordinate))
+        .exists(move => move.fromTo._2 == gameInfo.kingCoordinates._2)
+    case "black" =>
+      !gameInfo.board.board
+        .filter(_.color == "black")
+        .flatMap(figure => availableMovesFromWeak(gameInfo, figure.coordinate))
+        .exists(move => move.fromTo._2 == gameInfo.kingCoordinates._1)
   }
   def getGame: F[GameInfo] = game.get
 
-  def isEnded(gameInfo: GameInfo): F[GameStatus] = gameInfo.turn.match {
-    case "white" => gameInfo.board.board.filter(_.color == "white").flatTraverse(figure => availableMovesFromPrivate(gameInfo, figure.coordinate)).map {
-      case Nil if !isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, (gameInfo.kingCoordinates._1, gameInfo.kingCoordinates._1)))) => "black win"
-      case Nil => "draw"
-      case _ => "game continuing"
+  def isEnded(gameInfo: GameInfo): F[GameStatus] =
+    gameInfo.turn.match {
+      case "white" => gameInfo.board.board.filter(_.color == "white").flatTraverse(figure => availableMovesFromPrivate(gameInfo, figure.coordinate)).map {
+        case Nil if !isPositionLegal(gameInfo.copy(turn = "black")) => BlackWin
+        case Nil => Draw
+        case _ => GameContinuing
+      }
+      case "black" => gameInfo.board.board.filter(_.color == "black").flatTraverse(figure => availableMovesFromPrivate(gameInfo, figure.coordinate)).map {
+        case Nil if !isPositionLegal(gameInfo.copy(turn = "white")) => WhiteWin
+        case Nil => Draw
+        case _ => GameContinuing
+      }
     }
-    case "black" => gameInfo.board.board.filter(_.color == "black").flatTraverse(figure => availableMovesFromPrivate(gameInfo, figure.coordinate)).map {
-      case Nil if !isPositionLegal(makeMovePrediction(gameInfo, SimpleMove(Figure.KING, (gameInfo.kingCoordinates._2, gameInfo.kingCoordinates._2)))) => "white win"
-      case Nil => "draw"
-      case _ => "game continuing"
-    }
-  }
+
+
+
 
   def makeMove(move: Move): F[GameStatus] = for {
     gameInfoOld <- game.get
     gameInfoNew <- makeMovePrediction(gameInfoOld, move).pure[F]
-    isEnded <- isEnded(gameInfoNew)
-    _ <- game.set(gameInfoNew)
-  } yield isEnded
+    res <- if isPositionLegal(gameInfoNew) then {
+      game.set(gameInfoNew).flatMap(_ => isEnded(gameInfoNew))
+    }
+    else NotAValidMove.pure[F]
+  } yield res
   
   def availableMovesFrom(coordinate: Coordinate): F[List[Move]] = for {
     gameInfo <- game.get
@@ -271,8 +291,8 @@ class GameWorker[F[_] : Concurrent](game: Ref[F, GameInfo])(val id: UUID) {
 }
 
 object GameWorker {
-  def apply[F[_] : Concurrent](id: UUID): F[GameWorker[F]] = for {
-    game <- Ref.of[F, GameInfo](GameInfo(defaultBoard))
+  def apply[F[_] : Concurrent](id: UUID, board: Board = defaultBoard): F[GameWorker[F]] = for {
+    game <- Ref.of[F, GameInfo](GameInfo(board))
   } yield new GameWorker[F](game)(id)
 }
 

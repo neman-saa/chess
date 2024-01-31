@@ -17,7 +17,9 @@ import doobie.util.*
 import chess.core.GameWorker.*
 import chess.domain.socket.InputMessage
 import chess.domain.socket.InputMessage.*
+import chess.domain.game.GameStatus.*
 import java.util.UUID
+
 
 type Coordinate = (Int, Int)
 type GameStatus = String
@@ -29,7 +31,6 @@ trait Games[F[_]] {
   def allGames: F[List[RoomId]]
   def persistGameAndDeleteFromList(id: RoomId, winner: Option[String]): F[Unit]
   def cancelGame(id: RoomId): F[Unit]
-
   def endGame(loser: UUID, id: RoomId): F[Unit]
   def moveFor(id: RoomId, move: Move, player: UUID): F[Unit]
   def availableMovesFrom(player: UUID, roomId: RoomId, coordinate: Coordinate): F[Unit]
@@ -101,12 +102,13 @@ class LiveGames[F[_]: Concurrent: Logger](xa: Transactor[F])(
         val continue = workerTuple._3 == {if(player == workerTuple._1._1) "white" else "black"}
         if (continue)
           workerTuple._2.makeMove(move).flatMap {
-            case "gameContinue" => ().pure[F]
+            case GameContinuing => ().pure[F]
+            case NotAValidMove => sessions.offer(player, "you cannot go there")
             case status => for {
               players <- games.get.map(map => map(id)._1)
-              _ <- persistGameAndDeleteFromList(id, Some(status))
-              _ <- sessions.offer(players._1, status)
-              _ <- sessions.offer(players._2, status)
+              _ <- persistGameAndDeleteFromList(id, Some(status.toString))
+              _ <- sessions.offer(players._1, status.toString)
+              _ <- sessions.offer(players._2, status.toString)
               _ <- sessions.update(players._1, None)
               _ <- sessions.update(players._2, None)
             } yield ()

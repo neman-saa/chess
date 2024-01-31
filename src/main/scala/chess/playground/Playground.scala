@@ -2,11 +2,12 @@ package chess.playground
 
 import cats.Traverse
 import cats.effect.std.Queue
-import cats.effect.{Concurrent, Deferred, ExitCode, IO, IOApp, Resource}
+import cats.effect.{Concurrent, Deferred, ExitCode, IO, IOApp, Resource, Ref}
 import fs2.{Pipe, Stream}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.syntax.traverse.*
+import cats.effect.syntax.all.*
 import cats.instances.all.*
 import org.http4s.circe.CirceEntityCodec.*
 import org.http4s.dsl.impl.QueryParamDecoderMatcher
@@ -52,7 +53,34 @@ object Playground extends IOApp.Simple {
         .build
     } yield server
 
-    serverResource.use(_ => IO.println("server started") *> IO.never)
+    //serverResource.use(_ => IO.println("server started") *> IO.never)
+
+    var current = 1000000000
+    def oneToBillion: Unit =
+      if (current == 0) ()
+      else {current = current - 1; oneToBillion}
+
+    def withRef1(ref: Ref[IO, Int]): IO[Unit] = for {
+      n <- ref.updateAndGet(_ - 1)
+      res <- n match {
+        case 0 => IO.unit
+        case _ => withRef1(ref)
+      }
+    } yield res
+
+    def withRef2(ref: Ref[IO, Int]): IO[Unit] = ref.updateAndGet(_ - 1).flatMap{
+      case 0 => IO.unit
+      case _ => withRef2(ref)
+    }
+
+//    for {
+//      ref <- Ref.of[IO, Int](1000000000)
+//      timeFirst <- IO(System.currentTimeMillis())
+//      _ <- withRef1(ref)
+//      timeSecond <- IO(System.currentTimeMillis())
+//    } yield println(timeSecond - timeFirst)
+
+  List(1, 2, 3).flatTraverse(x => IO(if(x % 2 == 0) List(x * 2) else Nil)).map(println)
   }
 
 }
