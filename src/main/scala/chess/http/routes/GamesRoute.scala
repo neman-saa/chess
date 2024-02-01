@@ -53,7 +53,7 @@ class GamesRoute[F[_]: Temporal](
     case req @ GET -> Root / "startLobby" asAuthed user =>
       for {
         queue     <- Queue.unbounded[F, String]
-        _         <- Stream.awakeEvery[F](30.second).map(_ => "keep alive").evalMap(queue.offer).compile.drain
+        _         <- Stream.awakeEvery[F](30.second).map(_ => "keep alive").evalMap(queue.offer).compile.drain.start
         _         <- sessions.update(user.id, Some(queue))
         isCreated <- lobby.create(user.id)
         resp <- isCreated match {
@@ -93,7 +93,7 @@ class GamesRoute[F[_]: Temporal](
         case Right(_) =>
           for {
             queue <- Queue.unbounded[F, String]
-            _     <- Stream.awakeEvery[F](30.second).map(_ => "keep alive").evalMap(queue.offer).compile.drain
+            _     <- Stream.awakeEvery[F](30.second).map(_ => "keep alive").evalMap(queue.offer).compile.drain.start
             _     <- sessions.update(user.id, Some(queue))
             resp <- {
               val fromClient: Pipe[F, WebSocketFrame, Unit] =

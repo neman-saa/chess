@@ -91,10 +91,10 @@ object Playground extends IOApp.Simple {
 
 //    List(1, 2, 3).flatTraverse(x => IO(if (x % 2 == 0) List(x * 2) else Nil)).map(println)
 
-    Stream(Stream.awakeEvery[IO](3.second), Stream.awakeEvery[IO](4.second)).parJoinUnbounded
-      .foreach(IO.println(_))
-      .compile
-      .drain
+    for {
+      _ <- Stream.awakeEvery[IO](1.second).compile.drain.start
+      _ <- IO.println(5)
+    } yield ()
   }
 
 }
