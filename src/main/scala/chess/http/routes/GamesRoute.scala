@@ -2,6 +2,8 @@ package chess.http.routes
 
 import java.util.UUID
 
+import scala.concurrent.duration.*
+
 import cats.*
 import cats.effect.kernel.Temporal
 import cats.effect.std.Queue
@@ -36,7 +38,6 @@ import org.typelevel.log4cats.Logger
 import tsec.authentication.asAuthed
 import tsec.authentication.SecuredRequestHandler
 import tsec.authentication.TSecAuthService
-import scala.concurrent.duration.*
 class GamesRoute[F[_]: Temporal](
     webSocketBuilder: WebSocketBuilder2[F],
     games: Games[F],
@@ -92,7 +93,7 @@ class GamesRoute[F[_]: Temporal](
         case Right(_) =>
           for {
             queue <- Queue.unbounded[F, String]
-            _ <- Stream.awakeEvery[F](30.second).map(_ => "keep alive").evalMap(queue.offer).compile.drain
+            _     <- Stream.awakeEvery[F](30.second).map(_ => "keep alive").evalMap(queue.offer).compile.drain
             _     <- sessions.update(user.id, Some(queue))
             resp <- {
               val fromClient: Pipe[F, WebSocketFrame, Unit] =
@@ -102,8 +103,8 @@ class GamesRoute[F[_]: Temporal](
                     case WebSocketFrame.Text(str, _) => InputMessage.parse(user.id, str, id)
                   }.evalMap(games.processMessage)
               val toClient =
-                  Stream.emit("Connected to the game, waiting opponent.").map(WebSocketFrame.Text(_)) ++
-                    fs2.Stream.fromQueueUnterminated(queue).map(WebSocketFrame.Text(_))
+                Stream.emit("Connected to the game, waiting opponent.").map(WebSocketFrame.Text(_)) ++
+                  fs2.Stream.fromQueueUnterminated(queue).map(WebSocketFrame.Text(_))
               webSocketBuilder.build(toClient, fromClient)
             }
           } yield resp

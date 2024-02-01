@@ -1,7 +1,7 @@
 package chess.models
 
-import cats.effect.Temporal
 import cats.effect.Resource
+import cats.effect.Temporal
 import cats.syntax.all.*
 import chess.http.routes.AuthRoutes
 import chess.http.routes.GamesRoute

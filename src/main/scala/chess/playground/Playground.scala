@@ -19,18 +19,17 @@ import com.comcast.ip4s.Host
 import com.comcast.ip4s.Port
 import fs2.Pipe
 import fs2.Stream
-import scala.concurrent.duration.*
 import org.http4s.circe.CirceEntityCodec.*
 import org.http4s.dsl.impl.QueryParamDecoderMatcher
 import org.http4s.dsl.Http4sDsl
 import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.implicits.*
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.server.Router
 import org.http4s.websocket.WebSocketFrame
 import org.http4s.HttpRoutes
 import org.http4s.Response
 import org.http4s.Status
-import org.http4s.implicits.*
 object Playground extends IOApp.Simple {
   override def run: IO[Unit] = {
 
@@ -92,7 +91,10 @@ object Playground extends IOApp.Simple {
 
 //    List(1, 2, 3).flatTraverse(x => IO(if (x % 2 == 0) List(x * 2) else Nil)).map(println)
 
-    Stream(Stream.awakeEvery[IO](3.second), Stream.awakeEvery[IO](4.second)).parJoinUnbounded.foreach(IO.println(_)).compile.drain
+    Stream(Stream.awakeEvery[IO](3.second), Stream.awakeEvery[IO](4.second)).parJoinUnbounded
+      .foreach(IO.println(_))
+      .compile
+      .drain
   }
 
 }
