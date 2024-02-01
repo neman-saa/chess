@@ -3,7 +3,7 @@ package chess.http.routes
 import java.util.UUID
 
 import cats.*
-import cats.effect.kernel.Concurrent
+import cats.effect.kernel.Temporal
 import cats.effect.std.Queue
 import cats.effect.syntax.all.*
 import cats.effect.Concurrent
@@ -36,8 +36,8 @@ import org.typelevel.log4cats.Logger
 import tsec.authentication.asAuthed
 import tsec.authentication.SecuredRequestHandler
 import tsec.authentication.TSecAuthService
-
-class GamesRoute[F[_]: Concurrent](
+import scala.concurrent.duration.*
+class GamesRoute[F[_]: Temporal](
     webSocketBuilder: WebSocketBuilder2[F],
     games: Games[F],
     lobby: Lobby[F],
@@ -52,6 +52,7 @@ class GamesRoute[F[_]: Concurrent](
     case req @ GET -> Root / "startLobby" asAuthed user =>
       for {
         queue     <- Queue.unbounded[F, String]
+        _         <- Stream.awakeEvery[F](30.second).map(_ => "keep alive").evalMap(queue.offer).compile.drain
         _         <- sessions.update(user.id, Some(queue))
         isCreated <- lobby.create(user.id)
         resp <- isCreated match {
@@ -70,7 +71,7 @@ class GamesRoute[F[_]: Concurrent](
   private val connectToLobby: AuthRoutes[F] = {
     case req @ GET -> Root / "connectToLobby" / UUIDVar(id) asAuthed user =>
       lobby.connectTo(id, user.id).flatMap {
-        case Left(er) => BadRequest(er)
+        case Left(er)       => BadRequest(er)
         case Right(player1) => Ok(s"Room created, connect to it, room id: $id")
       }
   }
@@ -91,6 +92,7 @@ class GamesRoute[F[_]: Concurrent](
         case Right(_) =>
           for {
             queue <- Queue.unbounded[F, String]
+            _ <- Stream.awakeEvery[F](30.second).map(_ => "keep alive").evalMap(queue.offer).compile.drain
             _     <- sessions.update(user.id, Some(queue))
             resp <- {
               val fromClient: Pipe[F, WebSocketFrame, Unit] =
@@ -100,9 +102,8 @@ class GamesRoute[F[_]: Concurrent](
                     case WebSocketFrame.Text(str, _) => InputMessage.parse(user.id, str, id)
                   }.evalMap(games.processMessage)
               val toClient =
-                Stream.emit("Connected to the game, waiting opponent.").map(WebSocketFrame.Text(_)) ++ fs2.Stream
-                  .fromQueueUnterminated(queue)
-                  .map(WebSocketFrame.Text(_))
+                  Stream.emit("Connected to the game, waiting opponent.").map(WebSocketFrame.Text(_)) ++
+                    fs2.Stream.fromQueueUnterminated(queue).map(WebSocketFrame.Text(_))
               webSocketBuilder.build(toClient, fromClient)
             }
           } yield resp
@@ -112,8 +113,8 @@ class GamesRoute[F[_]: Concurrent](
   val unAuthedRoutes: HttpRoutes[F] = allLobbies
   val authedRoutes: HttpRoutes[F] = securedHandler.liftService(
     startLobby.restrictedTo(allRoles) |+|
-    connectToLobby.restrictedTo(allRoles) |+|
-    connectToGame.restrictedTo(allRoles)
+      connectToLobby.restrictedTo(allRoles) |+|
+      connectToGame.restrictedTo(allRoles)
   )
 
   val allRoutes: HttpRoutes[F] = Router(
@@ -122,7 +123,7 @@ class GamesRoute[F[_]: Concurrent](
 }
 
 object GamesRoute {
-  def apply[F[_]: Concurrent](
+  def apply[F[_]: Temporal](
       webSocketBuilder: WebSocketBuilder2[F],
       games: Games[F],
       lobby: Lobby[F],

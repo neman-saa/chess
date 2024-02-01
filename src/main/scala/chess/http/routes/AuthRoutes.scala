@@ -2,7 +2,8 @@ package chess.http.routes
 
 import cats.effect.Concurrent
 import cats.syntax.all.*
-import chess.core.{Auth, Sessions}
+import chess.core.Auth
+import chess.core.Sessions
 import chess.domain.auth.LoginInfo
 import chess.domain.auth.NewPasswordInfo
 import chess.domain.security.*
@@ -98,5 +99,6 @@ class AuthRoutess[F[_]: Concurrent: Logger](auth: Auth[F], sessions: Sessions[F]
 }
 
 object AuthRoutes {
-  def apply[F[_]: Concurrent: Logger](auth: Auth[F], sessions: Sessions[F]): AuthRoutess[F] = new AuthRoutess[F](auth, sessions)
+  def apply[F[_]: Concurrent: Logger](auth: Auth[F], sessions: Sessions[F]): AuthRoutess[F] =
+    new AuthRoutess[F](auth, sessions)
 }

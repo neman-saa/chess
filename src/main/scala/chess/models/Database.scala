@@ -1,6 +1,7 @@
 package chess.models
 
-import cats.effect.{Async, Resource}
+import cats.effect.Async
+import cats.effect.Resource
 import chess.configuration.PostgresConfig
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts

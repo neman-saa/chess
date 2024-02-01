@@ -1,16 +1,25 @@
 package chess.domain
-import org.http4s.{Response, Status}
-import tsec.authentication.{AugmentedJWT, JWTAuthenticator, SecuredRequest, TSecAuthService}
-import tsec.authorization.{AuthorizationInfo, BasicRBAC}
-import tsec.mac.jca.HMACSHA256
 import cats.implicits.*
-import cats.{Applicative, Monad, MonadThrow, Semigroup}
-import chess.domain.user.{Role, User}
+import cats.Applicative
+import cats.Monad
+import cats.MonadThrow
+import cats.Semigroup
+import chess.domain.user.Role
+import chess.domain.user.User
+import org.http4s.Response
+import org.http4s.Status
+import tsec.authentication.AugmentedJWT
+import tsec.authentication.JWTAuthenticator
+import tsec.authentication.SecuredRequest
+import tsec.authentication.TSecAuthService
+import tsec.authorization.AuthorizationInfo
+import tsec.authorization.BasicRBAC
+import tsec.mac.jca.HMACSHA256
 
 object security {
-  type JwtToken = AugmentedJWT[HMACSHA256, String]
-  type Authenticator[F[_]] = JWTAuthenticator[F, String, User, HMACSHA256]
-  type AuthRoutes[F[_]] = PartialFunction[SecuredRequest[F, User, JwtToken], F[Response[F]]]
+  type JwtToken               = AugmentedJWT[HMACSHA256, String]
+  type Authenticator[F[_]]    = JWTAuthenticator[F, String, User, HMACSHA256]
+  type AuthRoutes[F[_]]       = PartialFunction[SecuredRequest[F, User, JwtToken], F[Response[F]]]
   private type AuthRBAC[F[_]] = BasicRBAC[F, Role, User, JwtToken]
 
   given authRole[F[_]: MonadThrow]: AuthorizationInfo[F, Role, User] with {
@@ -26,9 +35,8 @@ object security {
   case class Authorizations[F[_]](rbacRoutes: Map[AuthRBAC[F], List[AuthRoutes[F]]])
 
   private object Authorizations {
-    given combiner[F[_]]: Semigroup[Authorizations[F]] = Semigroup.instance(
-      (authA, authB) => Authorizations(authA.rbacRoutes |+| authB.rbacRoutes)
-    )
+    given combiner[F[_]]: Semigroup[Authorizations[F]] =
+      Semigroup.instance((authA, authB) => Authorizations(authA.rbacRoutes |+| authB.rbacRoutes))
   }
 
   extension [F[_]](authRoutes: AuthRoutes[F])
@@ -36,7 +44,6 @@ object security {
       Authorizations(Map(rbac -> List(authRoutes)))
 
   given authToSec[F[_]: Monad]: Conversion[Authorizations[F], TSecAuthService[User, JwtToken, F]] =
-
     auths => {
       val unAuthorizedService =
         TSecAuthService[User, JwtToken, F] { _ =>

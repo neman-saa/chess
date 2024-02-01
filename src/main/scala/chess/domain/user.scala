@@ -1,23 +1,24 @@
 package chess.domain
 
-import doobie.Meta
-import tsec.authorization.{AuthGroup, SimpleAuthEnum}
-
 import java.util.UUID
 
+import doobie.Meta
+import tsec.authorization.AuthGroup
+import tsec.authorization.SimpleAuthEnum
 
 object user {
 
   case class User(
-                   id: UUID,
-                   elo: Int, 
-                   wins: Int,
-                   loses: Int, 
-                   allGames: Int, 
-                   nickname: String, 
-                   role: Role, 
-                   email: Option[String],
-                   hashedPassword: String)
+      id: UUID,
+      elo: Int,
+      wins: Int,
+      loses: Int,
+      allGames: Int,
+      nickname: String,
+      role: Role,
+      email: Option[String],
+      hashedPassword: String
+  )
 
   enum Role {
     case ADMIN, PLAYER
@@ -32,6 +33,6 @@ object user {
 
     override def getRepr(role: Role): String = role.toString
   }
-  
+
   case class UserRegistration(pass: String, nickname: String, mbEmail: Option[String] = None)
 }

@@ -1,10 +1,10 @@
 package chess.configuration
 
-import pureconfig.ConfigReader
 import pureconfig.generic.derivation.default.*
+import pureconfig.ConfigReader
 
 case class AppConfig(
-                      emberConfig: EmberConfig,
-                      postgresConfig: PostgresConfig,
-                      securityConfig: SecurityConfig
-                    ) derives ConfigReader
+    emberConfig: EmberConfig,
+    postgresConfig: PostgresConfig,
+    securityConfig: SecurityConfig
+) derives ConfigReader

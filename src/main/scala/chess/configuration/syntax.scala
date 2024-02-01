@@ -1,11 +1,13 @@
 package chess.configuration
 
-import cats.{MonadError, MonadThrow}
-import pureconfig.{ConfigReader, ConfigSource}
-import cats.implicits.*
-import pureconfig.error.ConfigReaderException
-
 import scala.reflect.ClassTag
+
+import cats.implicits.*
+import cats.MonadError
+import cats.MonadThrow
+import pureconfig.error.ConfigReaderException
+import pureconfig.ConfigReader
+import pureconfig.ConfigSource
 
 object syntax {
   extension (source: ConfigSource) {

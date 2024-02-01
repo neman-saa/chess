@@ -1,28 +1,36 @@
 package chess.playground
 
-import cats.Traverse
+import scala.concurrent.duration.*
+
 import cats.effect.std.Queue
-import cats.effect.{Concurrent, Deferred, ExitCode, IO, IOApp, Resource, Ref}
-import fs2.{Pipe, Stream}
 import cats.effect.syntax.all.*
+import cats.effect.Concurrent
+import cats.effect.Deferred
+import cats.effect.ExitCode
+import cats.effect.IO
+import cats.effect.IOApp
+import cats.effect.Ref
+import cats.effect.Resource
+import cats.instances.all.*
 import cats.syntax.all.*
 import cats.syntax.traverse.*
-import cats.effect.syntax.all.*
-import cats.instances.all.*
+import cats.Traverse
+import com.comcast.ip4s.Host
+import com.comcast.ip4s.Port
+import fs2.Pipe
+import fs2.Stream
+import scala.concurrent.duration.*
 import org.http4s.circe.CirceEntityCodec.*
 import org.http4s.dsl.impl.QueryParamDecoderMatcher
 import org.http4s.dsl.Http4sDsl
+import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.server.Router
 import org.http4s.websocket.WebSocketFrame
 import org.http4s.HttpRoutes
 import org.http4s.Response
 import org.http4s.Status
-import org.http4s.ember.server.EmberServerBuilder
-import com.comcast.ip4s.Host
-import com.comcast.ip4s.Port
-import scala.concurrent.duration.*
-
+import org.http4s.implicits.*
 object Playground extends IOApp.Simple {
   override def run: IO[Unit] = {
 
@@ -35,10 +43,12 @@ object Playground extends IOApp.Simple {
         case GET -> Root / "wstest" =>
           val fromClient: Pipe[IO, WebSocketFrame, Unit] = (in: fs2.Stream[IO, WebSocketFrame]) =>
             in.collect {
-              case WebSocketFrame.Text("ping", _) => {println("received"); "ping"}
+              case WebSocketFrame.Text("ping", _) => { println("received"); "ping" }
             }.evalMap(queue.offer)
 
-          val toClient: Stream[IO, WebSocketFrame] = (fs2.Stream.emit("Started") ++ fs2.Stream.fromQueueUnterminated(queue).map(_ => "pong")).map(WebSocketFrame.Text(_))
+          val toClient: Stream[IO, WebSocketFrame] =
+            (fs2.Stream.emit("Started") ++ fs2.Stream.fromQueueUnterminated(queue).map(_ => "pong"))
+              .map(WebSocketFrame.Text(_))
           webSocketBuilder.build(toClient, fromClient)
       }
     }
@@ -53,12 +63,12 @@ object Playground extends IOApp.Simple {
         .build
     } yield server
 
-    //serverResource.use(_ => IO.println("server started") *> IO.never)
+    // serverResource.use(_ => IO.println("server started") *> IO.never)
 
     var current = 1000000000
     def oneToBillion: Unit =
       if (current == 0) ()
-      else {current = current - 1; oneToBillion}
+      else { current = current - 1; oneToBillion }
 
     def withRef1(ref: Ref[IO, Int]): IO[Unit] = for {
       n <- ref.updateAndGet(_ - 1)
@@ -68,7 +78,7 @@ object Playground extends IOApp.Simple {
       }
     } yield res
 
-    def withRef2(ref: Ref[IO, Int]): IO[Unit] = ref.updateAndGet(_ - 1).flatMap{
+    def withRef2(ref: Ref[IO, Int]): IO[Unit] = ref.updateAndGet(_ - 1).flatMap {
       case 0 => IO.unit
       case _ => withRef2(ref)
     }
@@ -80,7 +90,9 @@ object Playground extends IOApp.Simple {
 //      timeSecond <- IO(System.currentTimeMillis())
 //    } yield println(timeSecond - timeFirst)
 
-  List(1, 2, 3).flatTraverse(x => IO(if(x % 2 == 0) List(x * 2) else Nil)).map(println)
+//    List(1, 2, 3).flatTraverse(x => IO(if (x % 2 == 0) List(x * 2) else Nil)).map(println)
+
+    Stream(Stream.awakeEvery[IO](3.second), Stream.awakeEvery[IO](4.second)).parJoinUnbounded.foreach(IO.println(_)).compile.drain
   }
 
 }
