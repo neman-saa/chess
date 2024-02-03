@@ -53,7 +53,6 @@ class GamesRoute[F[_]: Temporal](
     case req @ GET -> Root / "startLobby" asAuthed user =>
       for {
         queue     <- Queue.unbounded[F, String]
-        _         <- Stream.awakeEvery[F](30.second).map(_ => "keep alive").evalMap(queue.offer).compile.drain.start
         _         <- sessions.update(user.id, Some(queue))
         isCreated <- lobby.create(user.id)
         resp <- isCreated match {
@@ -61,8 +60,11 @@ class GamesRoute[F[_]: Temporal](
           case Right(id) =>
             val fromClient: Pipe[F, WebSocketFrame, Unit] = (in: fs2.Stream[F, WebSocketFrame]) => in.drain
             val toClient =
-              (fs2.Stream.emit(s"Lobby created, waiting opponent, id: $id") ++
-                fs2.Stream.fromQueueUnterminated(queue))
+              Stream(
+                fs2.Stream.emit(s"Lobby created, waiting opponent, id: $id") ++
+                  fs2.Stream.awakeEvery[F](30.second).map(_ => "keep alive") ++
+                  fs2.Stream.fromQueueUnterminated(queue)
+              ).parJoinUnbounded
                 .map(text => WebSocketFrame.Text(text))
             webSocketBuilder.build(toClient, fromClient)
         }
@@ -93,7 +95,6 @@ class GamesRoute[F[_]: Temporal](
         case Right(_) =>
           for {
             queue <- Queue.unbounded[F, String]
-            _     <- Stream.awakeEvery[F](30.second).map(_ => "keep alive").evalMap(queue.offer).compile.drain.start
             _     <- sessions.update(user.id, Some(queue))
             resp <- {
               val fromClient: Pipe[F, WebSocketFrame, Unit] =
@@ -103,8 +104,12 @@ class GamesRoute[F[_]: Temporal](
                     case WebSocketFrame.Text(str, _) => InputMessage.parse(user.id, str, id)
                   }.evalMap(games.processMessage)
               val toClient =
-                Stream.emit("Connected to the game, waiting opponent.").map(WebSocketFrame.Text(_)) ++
-                  fs2.Stream.fromQueueUnterminated(queue).map(WebSocketFrame.Text(_))
+                Stream(
+                  Stream.emit("Connected to the game, waiting opponent.") ++
+                    Stream.awakeEvery[F](30.second).map(_ => "keep alive") ++
+                    fs2.Stream.fromQueueUnterminated(queue)
+                ).parJoinUnbounded
+                  .map(WebSocketFrame.Text(_))
               webSocketBuilder.build(toClient, fromClient)
             }
           } yield resp
