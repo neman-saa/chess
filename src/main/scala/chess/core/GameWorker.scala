@@ -10,11 +10,7 @@ import cats.effect.Ref
 import cats.instances.list.*
 import cats.kernel.Previous
 import cats.syntax.all.*
-import chess.domain.chessboard.defaultBoard
-import chess.domain.chessboard.Board
-import chess.domain.chessboard.Figure
-import chess.domain.chessboard.Figure.ROOK1
-import chess.domain.chessboard.FigureWithColor
+import chess.domain.chessboard._
 import chess.domain.game.*
 import chess.domain.game.GameStatus.*
 import chess.domain.game.Move.*

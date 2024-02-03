@@ -8,6 +8,7 @@ import cats.effect.Ref
 import cats.syntax.all.*
 import chess.core.Games
 import org.typelevel.log4cats.Logger
+
 trait Lobby[F[_]] {
   def create(player1: UUID): F[Either[String, UUID]]
   def connectTo(roomId: UUID, player2: UUID): F[Either[ConnectionError, UUID]]

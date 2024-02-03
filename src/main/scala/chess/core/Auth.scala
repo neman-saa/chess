@@ -1,4 +1,5 @@
 package chess.core
+
 import java.util.UUID
 
 import scala.concurrent.duration.*
@@ -20,6 +21,7 @@ import tsec.common.SecureRandomId
 import tsec.mac.jca.HMACSHA256
 import tsec.passwordhashers.jca.BCrypt
 import tsec.passwordhashers.PasswordHash
+
 trait Auth[F[_]] {
   def login(nickname: String, password: String): F[Option[JwtToken]]
   def signUp(userRegistration: UserRegistration): F[Option[User]]

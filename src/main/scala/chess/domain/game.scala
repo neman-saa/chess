@@ -2,9 +2,7 @@ package chess.domain
 
 import java.util.UUID
 
-import chess.domain.chessboard.Board
-import chess.domain.chessboard.Figure
-import chess.domain.chessboard.FigureWithColor
+import chess.domain.chessboard._
 import chess.domain.game.Move.*
 import chess.domain.user.User
 

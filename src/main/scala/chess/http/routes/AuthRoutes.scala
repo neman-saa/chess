@@ -16,9 +16,7 @@ import org.http4s.dsl.Http4sDsl
 import org.http4s.dsl.RequestDslBinCompat
 import org.http4s.server.Router
 import org.http4s.EntityDecoder
-import org.http4s.HttpRoutes
-import org.http4s.Response
-import org.http4s.Status
+import org.http4s.{HttpRoutes, Response, Status}
 import org.typelevel.log4cats.Logger
 import tsec.authentication.asAuthed
 import tsec.authentication.SecuredRequestHandler

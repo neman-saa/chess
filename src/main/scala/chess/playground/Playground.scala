@@ -5,20 +5,13 @@ import scala.concurrent.duration.*
 import cats.effect.std.Queue
 import cats.effect.syntax.all.*
 import cats.effect.Concurrent
-import cats.effect.Deferred
-import cats.effect.ExitCode
-import cats.effect.IO
-import cats.effect.IOApp
-import cats.effect.Ref
-import cats.effect.Resource
+import cats.effect._
 import cats.instances.all.*
 import cats.syntax.all.*
-import cats.syntax.traverse.*
 import cats.Traverse
 import com.comcast.ip4s.Host
 import com.comcast.ip4s.Port
-import fs2.Pipe
-import fs2.Stream
+import fs2.{Pipe, Stream}
 import org.http4s.circe.CirceEntityCodec.*
 import org.http4s.dsl.impl.QueryParamDecoderMatcher
 import org.http4s.dsl.Http4sDsl
@@ -27,9 +20,8 @@ import org.http4s.implicits.*
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.server.Router
 import org.http4s.websocket.WebSocketFrame
-import org.http4s.HttpRoutes
-import org.http4s.Response
-import org.http4s.Status
+import org.http4s.{HttpRoutes, Response, Status}
+
 object Playground extends IOApp.Simple {
   override def run: IO[Unit] = {
 

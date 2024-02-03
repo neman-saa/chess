@@ -1,9 +1,6 @@
 package chess.domain
 import cats.implicits.*
-import cats.Applicative
-import cats.Monad
-import cats.MonadThrow
-import cats.Semigroup
+import cats.*
 import chess.domain.user.Role
 import chess.domain.user.User
 import org.http4s.Response
@@ -13,7 +10,7 @@ import tsec.authentication.JWTAuthenticator
 import tsec.authentication.SecuredRequest
 import tsec.authentication.TSecAuthService
 import tsec.authorization.AuthorizationInfo
-import tsec.authorization.BasicRBAC
+import tsec.authorization.BasicRBAC // if use ._ does not work
 import tsec.mac.jca.HMACSHA256
 
 object security {

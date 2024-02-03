@@ -4,15 +4,7 @@ import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.syntax.all.*
 import chess.configuration.SecurityConfig
-import chess.core.Auth
-import chess.core.Games
-import chess.core.LiveAuth
-import chess.core.LiveGames
-import chess.core.Lobby
-import chess.core.LobbyLive
-import chess.core.Sessions
-import chess.core.SessionsLive
-import chess.core.Users
+import chess.core._
 import chess.core.UsersLive
 import doobie.util.transactor.Transactor
 import org.typelevel.log4cats.Logger

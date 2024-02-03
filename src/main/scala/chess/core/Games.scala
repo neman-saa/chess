@@ -21,6 +21,7 @@ import doobie.util.*
 import doobie.util.transactor.Transactor
 import org.typelevel.log4cats.Logger
 
+
 type Coordinate = (Int, Int)
 type GameStatus = String
 type RoomId     = UUID

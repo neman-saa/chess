@@ -12,17 +12,13 @@ import cats.effect.Concurrent
 import cats.effect.Ref
 import cats.implicits.*
 import cats.syntax.all.*
-import chess.core.Games
-import chess.core.Lobby
-import chess.core.Sessions
-import chess.core.Users
+import chess.core._
 import chess.domain.chessboard.Figure
 import chess.domain.security.*
 import chess.domain.socket.InputMessage
 import chess.domain.socket.InputMessage.*
 import chess.domain.user.User
-import fs2.Pipe
-import fs2.Stream
+import fs2.{Pipe, Stream}
 import io.circe.generic.auto.*
 import io.circe.syntax.*
 import org.http4s.circe.CirceEntityCodec.*
@@ -31,13 +27,10 @@ import org.http4s.dsl.Http4sDsl
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.server.Router
 import org.http4s.websocket.WebSocketFrame
-import org.http4s.HttpRoutes
-import org.http4s.Response
-import org.http4s.Status
+import org.http4s.{HttpRoutes, Response, Status}
 import org.typelevel.log4cats.Logger
-import tsec.authentication.asAuthed
-import tsec.authentication.SecuredRequestHandler
-import tsec.authentication.TSecAuthService
+import tsec.authentication.{SecuredRequestHandler, TSecAuthService, asAuthed}
+
 class GamesRoute[F[_]: Temporal](
     webSocketBuilder: WebSocketBuilder2[F],
     games: Games[F],
