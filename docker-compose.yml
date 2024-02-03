@@ -1,5 +1,11 @@
 version: '3.1'
 
+# If you shut down your container, then you will lose all the data
+# In order to avoid this, you can create separate volume for PostgreSQL data and save the data locally as well
+# ../data/postgres:/var/lib/postgresql/data
+# Besides, did you check db migrations tools like FlyWay / Liquibase?
+# With help of them you can control db migrations from your source code and get rid of:
+# ./sql:/docker-entrypoint-initdb.d
 services:
   db:
     image: postgres

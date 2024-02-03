@@ -3,6 +3,10 @@ ThisBuild / scalaVersion := "3.2.1"
 
 lazy val scala3Version = "3.2.1"
 
+/*
+* It is better to move all these dependencies stuff in separate object Dependencies.scala in ./project folder
+* and import it in build.sbt
+* */
 lazy val circeVersion               = "0.14.0"
 lazy val catsEffectVersion          = "3.3.14"
 lazy val http4sVersion              = "0.23.15"
@@ -17,6 +21,7 @@ lazy val logbackVersion             = "1.4.0"
 lazy val slf4jVersion               = "2.0.0"
 lazy val javaMailVersion            = "1.6.2"
 
+// Usually we name it as "root"
 lazy val server = (project in file("."))
   .settings(
     name         := "chess-project",
