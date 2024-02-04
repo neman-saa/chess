@@ -5,7 +5,7 @@ lazy val scala3Version = "3.2.1"
 
 lazy val server = (project in file("."))
   .settings(
-    name         := "chess-project",
+    name         := "root",
     scalaVersion := scala3Version,
     libraryDependencies ++= Dependencies.dependencies,
     Compile / mainClass := Some("chess/Application.scala")

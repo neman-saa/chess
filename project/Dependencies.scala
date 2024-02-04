@@ -13,7 +13,6 @@ object Dependencies {
   lazy val testContainerVersion       = "1.17.3"
   lazy val logbackVersion             = "1.4.0"
   lazy val slf4jVersion               = "2.0.0"
-  lazy val javaMailVersion            = "1.6.2"
 
   val dependencies = Seq(
     "org.typelevel"         %% "cats-effect"                   % catsEffectVersion,
@@ -30,7 +29,6 @@ object Dependencies {
     "org.typelevel"         %% "log4cats-slf4j"                % log4catsVersion,
     "org.slf4j"              % "slf4j-simple"                  % slf4jVersion,
     "io.github.jmcardon"    %% "tsec-http4s"                   % tsecVersion,
-    "com.sun.mail"           % "javax.mail"                    % javaMailVersion,
     "org.typelevel"         %% "log4cats-noop"                 % log4catsVersion            % Test,
     "org.scalatest"         %% "scalatest"                     % scalaTestVersion           % Test,
     "org.typelevel"         %% "cats-effect-testing-scalatest" % scalaTestCatsEffectVersion % Test,
