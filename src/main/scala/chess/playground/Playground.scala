@@ -74,19 +74,19 @@ object Playground extends IOApp.Simple {
       case _ => withRef2(ref)
     }
 
-//    for {
-//      ref <- Ref.of[IO, Int](1000000000)
-//      timeFirst <- IO(System.currentTimeMillis())
-//      _ <- withRef1(ref)
-//      timeSecond <- IO(System.currentTimeMillis())
-//    } yield println(timeSecond - timeFirst)
-
-//    List(1, 2, 3).flatTraverse(x => IO(if (x % 2 == 0) List(x * 2) else Nil)).map(println)
-
     for {
-      _ <- Stream.awakeEvery[IO](1.second).compile.drain.start
-      _ <- IO.println(5)
-    } yield ()
+      ref <- Ref.of[IO, Int](1000000000)
+      timeFirst <- IO(System.currentTimeMillis())
+      _ <- withRef1(ref)
+      timeSecond <- IO(System.currentTimeMillis())
+    } yield println(timeSecond - timeFirst)
+
+    List(1, 2, 3).flatTraverse(x => IO(if (x % 2 == 0) List(x * 2) else Nil)).map(println)
+
+//    for {
+//      _ <- Stream.awakeEvery[IO](1.second).compile.drain.start
+//      _ <- IO.println(5)
+//    } yield ()
   }
 
 }

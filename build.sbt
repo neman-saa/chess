@@ -3,10 +3,16 @@ ThisBuild / scalaVersion := "3.2.1"
 
 lazy val scala3Version = "3.2.1"
 
-lazy val server = (project in file("."))
+lazy val root = (project in file("."))
   .settings(
-    name         := "root",
+    name         := "chess",
     scalaVersion := scala3Version,
     libraryDependencies ++= Dependencies.dependencies,
-    Compile / mainClass := Some("chess/Application.scala")
+    Compile / mainClass := Some("chess/Application.scala"),
+    fullRunTask(runMigrate, Compile, "chess/DBMigrationsCommand"),
+    runMigrate / fork := true,
   )
+
+lazy val runMigrate = taskKey[Unit]("Migrates the database schema.")
+addCommandAlias("run-db-migrations", "runMigrate")
+
