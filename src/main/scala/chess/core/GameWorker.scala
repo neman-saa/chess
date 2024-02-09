@@ -342,7 +342,7 @@ class GameWorker[F[_]: Concurrent](val game: Ref[F, GameInfo])(val id: UUID) {
     )
   }
 
-  def isPositionLegal(gameInfo: GameInfo): Boolean = gameInfo.turn match {
+  private def isPositionLegal(gameInfo: GameInfo): Boolean = gameInfo.turn match {
     case "white" =>
       !gameInfo.board.board
         .filter(_.color == "white")
@@ -397,12 +397,16 @@ class GameWorker[F[_]: Concurrent](val game: Ref[F, GameInfo])(val id: UUID) {
 
   def makeMove(move: Move): F[GameStatus] = for {
     gameInfoOld <- game.get
-    gameInfoNew <- makeMovePrediction(gameInfoOld, move).pure[F]
-    res <-
-      if isPositionLegal(gameInfoNew) then {
-        game.set(gameInfoNew).flatMap(_ => isEnded(gameInfoNew))
+    isAvailable <- availableMovesFrom(move.fromTo._1).map(_.contains(move))
+    status <-
+      if isAvailable then {
+        val gameInfoNew = makeMovePrediction(gameInfoOld, move)
+        for {
+          _      <- game.set(gameInfoNew)
+          status <- isEnded(gameInfoNew)
+        } yield status
       } else NotAValidMove.pure[F]
-  } yield res
+  } yield status
 
   def availableMovesFrom(coordinate: Coordinate): F[List[Move]] = for {
     gameInfo <- game.get

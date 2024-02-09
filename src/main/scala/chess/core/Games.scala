@@ -21,7 +21,6 @@ import doobie.util.*
 import doobie.util.transactor.Transactor
 import org.typelevel.log4cats.Logger
 
-
 type Coordinate = (Int, Int)
 type GameStatus = String
 type RoomId     = UUID
@@ -101,8 +100,11 @@ class LiveGames[F[_]: Concurrent: Logger](xa: Transactor[F])(
         val continue = workerTuple._3 == { if (player == workerTuple._1._1) "white" else "black" }
         if (continue)
           workerTuple._2.makeMove(move).flatMap {
-            case GameContinuing => ().pure[F]
-            case NotAValidMove  => sessions.offer(player, "you cannot go there")
+            case GameContinuing =>
+              val secondPlayer = if (workerTuple._1._1 == player) workerTuple._1._2 else workerTuple._1._1
+              sessions.offer(player, "game continuing") *> sessions
+                .offer(secondPlayer, s"game continuing; ${move.toString}")
+            case NotAValidMove => sessions.offer(player, "you cannot go there")
             case status =>
               for {
                 players <- games.get.map(map => map(id)._1)

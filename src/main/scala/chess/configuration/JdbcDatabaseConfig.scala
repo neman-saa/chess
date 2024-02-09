@@ -1,8 +1,8 @@
 package chess.configuration
 
-import pureconfig.generic.derivation.default.*
-import pureconfig.error.CannotConvert
 import pureconfig.*
+import pureconfig.error.CannotConvert
+import pureconfig.generic.derivation.default.*
 
 case class JdbcDatabaseConfig(
     driver: String,

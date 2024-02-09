@@ -1,6 +1,6 @@
 package chess.domain
-import cats.implicits.*
 import cats.*
+import cats.implicits.*
 import chess.domain.user.Role
 import chess.domain.user.User
 import org.http4s.Response

@@ -24,16 +24,28 @@ object game {
     object Draw extends GameStatus
 
   }
-  trait Move(val figure: Figure, val fromTo: (Coordinate, Coordinate))
+  trait Move(val figure: Figure, val fromTo: (Coordinate, Coordinate)) {
+    def toString: String
+  }
 
   object Move {
-    case class SimpleMove(figuree: Figure, fromToo: (Coordinate, Coordinate)) extends Move(figuree, fromToo)
+    case class SimpleMove(figuree: Figure, fromToo: (Coordinate, Coordinate)) extends Move(figuree, fromToo) {
+      override def toString: String =
+        s"simpleMove;${figure.toString.trim};${fromToo._1._1};${fromToo._1._2};${fromToo._2._1};${fromToo._2._2}"
+    }
 
-    case class EnPassant(fromToo: (Coordinate, Coordinate)) extends Move(Figure.PAWN, fromToo)
+    case class EnPassant(fromToo: (Coordinate, Coordinate)) extends Move(Figure.PAWN, fromToo) {
+      override def toString: String = s"enPassant;${fromToo._1._1};${fromToo._1._2};${fromToo._2._1};${fromToo._2._2}"
+    }
 
-    case class Castle(right: Boolean, fromToo: (Coordinate, Coordinate)) extends Move(Figure.KING, fromToo)
+    case class Castle(right: Boolean, fromToo: (Coordinate, Coordinate)) extends Move(Figure.KING, fromToo) {
+      override def toString: String =
+        s"castle;$right;${fromToo._1._1};${fromToo._1._2};${fromToo._2._1};${fromToo._2._2}"
+    }
 
-    case class Promotion(fromToo: (Coordinate, Coordinate), promotesTo: Figure) extends Move(Figure.PAWN, fromToo)
+    case class Promotion(fromToo: (Coordinate, Coordinate), promotesTo: Figure) extends Move(Figure.PAWN, fromToo) {
+      override def toString: String = s"promotion;${fromToo._1._1};${fromToo._1._2};${fromToo._2._1};${fromToo._2._2}"
+    }
 
   }
   case class GameInfo(

@@ -2,16 +2,17 @@ package chess.playground
 
 import scala.concurrent.duration.*
 
+import cats.effect._
 import cats.effect.std.Queue
 import cats.effect.syntax.all.*
 import cats.effect.Concurrent
-import cats.effect._
 import cats.instances.all.*
 import cats.syntax.all.*
 import cats.Traverse
 import com.comcast.ip4s.Host
 import com.comcast.ip4s.Port
-import fs2.{Pipe, Stream}
+import fs2.Pipe
+import fs2.Stream
 import org.http4s.circe.CirceEntityCodec.*
 import org.http4s.dsl.impl.QueryParamDecoderMatcher
 import org.http4s.dsl.Http4sDsl
@@ -20,7 +21,9 @@ import org.http4s.implicits.*
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.server.Router
 import org.http4s.websocket.WebSocketFrame
-import org.http4s.{HttpRoutes, Response, Status}
+import org.http4s.HttpRoutes
+import org.http4s.Response
+import org.http4s.Status
 
 object Playground extends IOApp.Simple {
   override def run: IO[Unit] = {
@@ -75,9 +78,9 @@ object Playground extends IOApp.Simple {
     }
 
     for {
-      ref <- Ref.of[IO, Int](1000000000)
-      timeFirst <- IO(System.currentTimeMillis())
-      _ <- withRef1(ref)
+      ref        <- Ref.of[IO, Int](1000000000)
+      timeFirst  <- IO(System.currentTimeMillis())
+      _          <- withRef1(ref)
       timeSecond <- IO(System.currentTimeMillis())
     } yield println(timeSecond - timeFirst)
 
