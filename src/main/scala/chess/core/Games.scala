@@ -103,14 +103,14 @@ class LiveGames[F[_]: Concurrent: Logger](xa: Transactor[F])(
             case GameContinuing =>
               val secondPlayer = if (workerTuple._1._1 == player) workerTuple._1._2 else workerTuple._1._1
               sessions.offer(player, "game continuing") *> sessions
-                .offer(secondPlayer, s"game continuing; ${move.toString}")
+                .offer(secondPlayer, s"game continuing; $move")
             case NotAValidMove => sessions.offer(player, "you cannot go there")
             case status =>
               for {
                 players <- games.get.map(map => map(id)._1)
                 _       <- persistGameAndDeleteFromList(id, Some(status.toString))
-                _       <- sessions.offer(players._1, status.toString)
-                _       <- sessions.offer(players._2, status.toString)
+                _       <- sessions.offer(players._1, s"$status; $move")
+                _       <- sessions.offer(players._2, s"$status; $move")
                 _       <- sessions.update(players._1, None)
                 _       <- sessions.update(players._2, None)
               } yield ()
