@@ -59,8 +59,8 @@ class GamesRoute[F[_]: Temporal](
             val fromClient: Pipe[F, WebSocketFrame, Unit] = (in: fs2.Stream[F, WebSocketFrame]) => in.drain
             val toClient =
               Stream(
-                fs2.Stream.emit(s"Lobby created, waiting opponent, id: $id") ++
-                  fs2.Stream.awakeEvery[F](30.second).map(_ => "keep alive") ++
+                fs2.Stream.emit(s"Lobby created, waiting opponent, id: $id"),
+                  fs2.Stream.awakeEvery[F](30.second).map(_ => "keep alive"),
                   fs2.Stream.fromQueueUnterminated(queue)
               ).parJoinUnbounded
                 .map(text => WebSocketFrame.Text(text))
@@ -103,8 +103,8 @@ class GamesRoute[F[_]: Temporal](
                   }.evalMap(games.processMessage)
               val toClient =
                 Stream(
-                  Stream.emit("Connected to the game, waiting opponent.") ++
-                    Stream.awakeEvery[F](30.second).map(_ => "keep alive") ++
+                  Stream.emit("Connected to the game, waiting opponent."),
+                    Stream.awakeEvery[F](30.second).map(_ => "keep alive"),
                     fs2.Stream.fromQueueUnterminated(queue)
                 ).parJoinUnbounded
                   .map(WebSocketFrame.Text(_))
